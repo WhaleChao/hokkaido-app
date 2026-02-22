@@ -1,0 +1,33 @@
+name: Auto Update Customs Rules
+
+on:
+  schedule:
+    # Run at 03:00 UTC every Monday
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+    # Allow manual triggering from the GitHub Actions UI
+
+jobs:
+  update-rules:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run Customs Updater Script
+        run: python scripts/update_customs.py
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add public/prohibited_rules.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update customs rules [skip ci]" && git push)
