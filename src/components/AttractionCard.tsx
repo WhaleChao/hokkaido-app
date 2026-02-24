@@ -38,15 +38,17 @@ function getSmartMapQuery(title: string, desc: string, origMapQuery: string): st
         }
 
         const lines = desc.split('\n').map(l => l.trim()).filter(l => l);
-        let noteLine = lines.find(l => l.includes('📝'));
-        if (!noteLine) noteLine = lines.length > 1 ? lines[lines.length - 1] : lines[0];
+        // 通常真正的店名會寫在「行程簡介」的第一行，而非後面的「備註」中
+        let noteLine = lines[0];
 
         if (noteLine) {
+            // 移除 Emoji、項目符號以及「|」後面的交通或雜項資訊
             const cleanDesc = noteLine.replace(/[\u{1F300}-\u{1F9FF}]|📝|^\d+[.、．]\s*|\|.*$/gu, '').trim();
             if (cleanDesc && cleanDesc.length < 20 && cleanDesc !== query.trim()) {
-                return `${query.trim()} ${cleanDesc}`;
+                // 若店名萃取成功，直接使用該店名搜尋，捨去「午餐」等字眼以獲得最佳搜尋結果
+                return cleanDesc;
             } else if (cleanDesc && cleanDesc !== query.trim()) {
-                return `${query.trim()} ${cleanDesc.substring(0, 15)}`;
+                return cleanDesc.substring(0, 15);
             }
         }
     }
