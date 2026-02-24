@@ -310,6 +310,8 @@ export function AttractionCard({ attraction, defaultRegion }: Props) {
                     <div className="card-category">
                         <span className="category-icon">{categoryIconMap[attraction.category] || '📍'}</span>
                         <span>{attraction.timeSlot && attraction.timeSlot !== '無' ? `[${attraction.timeSlot}] ` : ''}{attraction.category}</span>
+                        {/* DEBUG INFO TO CONFIRM UPDATE */}
+                        <span style={{ color: 'red', fontSize: '10px', marginLeft: '4px' }}>🔎 {displayMapQuery}</span>
                     </div>
                     <div className="card-tags">
                         {attraction.planVariant && (
