@@ -28,8 +28,8 @@ interface Props {
 function getSmartMapQuery(title: string, desc: string, origMapQuery: string): string {
     let query = title.replace(/\[.*?\]\s*/, '').split('→').pop() || title;
 
-    // 支援通用標題（可能加上英文數字，如 午餐A、午餐1）
-    const genericNames = /^(早餐|午餐|晚餐|宵夜|點心|下午茶|休息|吃飯|用餐)[A-Za-z0-9]*$/i;
+    // 支援通用標題（可能加上前綴或後綴，如 午餐A、男生行程的午餐）
+    const genericNames = /.*(早餐|午餐|晚餐|宵夜|點心|下午茶|休息|吃飯|用餐).*/i;
 
     if (genericNames.test(query.trim()) && desc) {
         // 若原先的 mapQuery 已經包含額外資訊，則保留
