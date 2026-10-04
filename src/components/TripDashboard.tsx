@@ -1,109 +1,201 @@
+import { useEffect, useState } from 'react';
+import { Plus, Map, Trash2, CalendarDays, ChevronRight } from 'lucide-react';
 import { useTripManager } from '../hooks/useTripManager';
-import { Plus, Map, Trash2, CalendarDays } from 'lucide-react';
-import { useState } from 'react';
+import { readConfig, writeDays } from '../utils/tripData';
+import { validateTripDates, tripDayCount, formatMD, addDaysISO, todayISO } from '../utils/date';
+import { sampleDays } from '../data/itinerary';
+import { patchConfig } from '../utils/tripData';
+import { BackupButtons } from './BackupButtons';
+import { useUi } from './ui/uiContext';
+import { onData } from '../utils/bus';
 
-export function TripDashboard({ onSelectTrip }: { onSelectTrip: (id: string) => void }) {
-    const { trips, loading, createTrip, deleteTrip } = useTripManager();
-    const [newTripName, setNewTripName] = useState('');
-    const [startDate, setStartDate] = useState('');
-    const [endDate, setEndDate] = useState('');
-    const [isCreating, setIsCreating] = useState(false);
+interface Props {
+    manager: ReturnType<typeof useTripManager>;
+}
 
-    if (loading) return <div className="tab-placeholder fade-in">載入行程庫中...</div>;
+function useTripSummaries(ids: string) {
+    const [map, setMap] = useState<Record<string, string>>({});
+    useEffect(() => {
+        let cancelled = false;
+        const load = async () => {
+            const out: Record<string, string> = {};
+            for (const id of ids ? ids.split(',') : []) {
+                const c = await readConfig(id).catch(() => null);
+                if (c) {
+                    const n = tripDayCount(c.startDate, c.endDate);
+                    out[id] = n ? `${formatMD(c.startDate)} – ${formatMD(c.endDate)}・${n} 天` : '日期尚未設定';
+                }
+            }
+            if (!cancelled) setMap(out);
+        };
+        void load();
+        const off = onData('config', () => void load());
+        return () => {
+            cancelled = true;
+            off();
+        };
+    }, [ids]);
+    return map;
+}
+
+export function TripDashboard({ manager }: Props) {
+    const { trips, loading, error, createTrip, selectTrip, deleteTrip } = manager;
+    const ui = useUi();
+    const [name, setName] = useState('');
+    const [start, setStart] = useState('');
+    const [end, setEnd] = useState('');
+    const [creating, setCreating] = useState(false);
+    const [errors, setErrors] = useState<{ name?: string; dates?: string }>({});
+    const summaries = useTripSummaries(trips.map((t) => t.id).join(','));
+
+    if (loading) return <div className="loading" role="status">載入行程庫中…</div>;
 
     const handleCreate = async () => {
-        if (!newTripName.trim() || !startDate || !endDate) {
-            alert('請完整輸入行程名稱與日期區間');
-            return;
+        const next: typeof errors = {};
+        if (!name.trim()) next.name = '請幫這趟旅程取個名字';
+        const dateProblem = validateTripDates(start, end);
+        if (dateProblem) next.dates = dateProblem;
+        setErrors(next);
+        if (Object.keys(next).length > 0) return;
+        const id = await ui.run(() => createTrip(name.trim(), start, end), '建立行程失敗');
+        if (id) {
+            setName('');
+            setStart('');
+            setEnd('');
+            setCreating(false);
         }
-        const newId = await createTrip(newTripName.trim(), startDate, endDate);
-        onSelectTrip(newId);
-        setNewTripName('');
-        setStartDate('');
-        setEndDate('');
-        setIsCreating(false);
+    };
+
+    const handleSample = async () => {
+        const from = addDaysISO(todayISO(), 30) ?? todayISO();
+        const to = addDaysISO(from, sampleDays.length - 1) ?? from;
+        await ui.run(async () => {
+            const id = await createTrip('北海道三日範例', from, to);
+            await patchConfig(id, { location: 'Sapporo, Japan', defaultRegion: '北海道', startDate: from, endDate: to });
+            const days = sampleDays.map((d, i) => ({ ...d, id: `day-${i + 1}`, dayLabel: `Day ${i + 1}`, attractions: d.attractions.map((a) => ({ ...a, id: `s${i + 1}-${a.id}` })) }));
+            await writeDays(id, days, days.map((d) => d.id));
+        }, '建立範例失敗');
+    };
+
+    const handleDelete = async (id: string, tripName: string) => {
+        const ok = await ui.confirm({
+            title: `刪除「${tripName}」？`,
+            message: '這趟旅程的行程、記帳、行李清單、相簿連結與票券都會從這支手機永久刪除，無法復原。\n\n如果不確定，請先「下載完整備份」。',
+            confirmText: '永久刪除',
+            danger: true,
+        });
+        if (ok) await ui.run(() => deleteTrip(id), '刪除失敗', '已刪除行程');
     };
 
     return (
-        <div className="trip-dashboard fade-in" style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto', height: '100vh', overflowY: 'auto' }}>
-            <div style={{ textAlign: 'center', marginBottom: '32px', marginTop: '40px' }}>
-                <div style={{ width: '80px', height: '80px', backgroundColor: 'var(--fuji-blue)', borderRadius: '24px', margin: '0 auto 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 8px 24px rgba(52, 88, 153, 0.3)' }}>
-                    <Map size={40} />
+        <main className="dashboard" id="main">
+            <div style={{ textAlign: 'center' }}>
+                <div className="brand-mark" aria-hidden="true">
+                    <Map size={32} />
                 </div>
-                <h1 style={{ fontSize: '2rem', color: 'var(--text-main)', marginBottom: '8px' }}>我的行程庫</h1>
-                <p style={{ color: 'var(--text-light)' }}>隨時切換與管理您的所有旅程</p>
+                <h1>我的行程庫</h1>
+                <p className="lead">行程、記帳與票券都存在這支手機，沒有網路也能用</p>
             </div>
 
-            <button
-                className="btn-add-attraction"
-                style={{ width: '100%', marginBottom: '24px', padding: '16px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '1.2rem', fontWeight: 'bold' }}
-                onClick={() => setIsCreating(!isCreating)}
-            >
-                <Plus size={24} /> 建立新的行程
-            </button>
-
-            {isCreating && (
-                <div className="address-card fade-in" style={{ marginBottom: '24px', padding: '20px' }}>
-                    <h3 style={{ marginBottom: '16px' }}>為這趟旅程命名與設定日期</h3>
-                    <input
-                        type="text"
-                        placeholder="例如：2025 大阪五星爆吃之旅"
-                        value={newTripName}
-                        onChange={(e) => setNewTripName(e.target.value)}
-                        style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd', marginBottom: '16px' }}
-                        autoFocus
-                    />
-                    <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, minWidth: '130px' }}>
-                            <label style={{ fontSize: '0.85rem', color: 'var(--text-light)', display: 'block', marginBottom: '4px' }}>出發日期</label>
-                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
-                        </div>
-                        <div style={{ flex: 1 }}>
-                            <label style={{ fontSize: '0.85rem', color: 'var(--text-light)', display: 'block', marginBottom: '4px' }}>結束日期</label>
-                            <input type="date" value={endDate} min={startDate} onChange={e => setEndDate(e.target.value)} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid #ddd' }} />
-                        </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                        <button className="btn-cancel" style={{ flex: 1 }} onClick={() => setIsCreating(false)}>取消</button>
-                        <button className="btn-save" style={{ flex: 1 }} onClick={handleCreate}>確認開團</button>
-                    </div>
+            {error && (
+                <div className="notice notice-error" role="alert" style={{ marginBottom: 16 }}>
+                    <span>{error}</span>
                 </div>
             )}
 
-            <h3 style={{ fontSize: '1.2rem', color: 'var(--text-dark)', marginBottom: '16px' }}>已儲存的行程 ({trips.length})</h3>
-
-            <div className="trip-grid desktop-grid" style={{ marginBottom: '100px' }}>
-                {trips.length === 0 && !isCreating ? (
-                    <div className="empty-state" style={{ padding: '40px 20px', borderRadius: '16px', border: '2px dashed #ddd' }}>
-                        尚無任何行程記錄
+            {!creating ? (
+                <button type="button" className="btn btn-primary btn-block" style={{ minHeight: 52, marginBottom: 20 }} onClick={() => setCreating(true)}>
+                    <Plus size={20} aria-hidden="true" /> 建立新的行程
+                </button>
+            ) : (
+                <form
+                    className="card"
+                    style={{ marginBottom: 20 }}
+                    onSubmit={(e) => {
+                        e.preventDefault();
+                        void handleCreate();
+                    }}
+                    noValidate
+                    aria-label="建立新的行程"
+                >
+                    <h2 className="section-title" style={{ margin: '0 0 12px' }}>
+                        為這趟旅程命名並選擇日期
+                    </h2>
+                    <label className="field">
+                        <span className="label">旅程名稱</span>
+                        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：2027 大阪吃到飽之旅" aria-invalid={!!errors.name} data-autofocus />
+                        {errors.name && (
+                            <p className="field-error" role="alert">
+                                {errors.name}
+                            </p>
+                        )}
+                    </label>
+                    <div className="field-row">
+                        <label className="field">
+                            <span className="label">出發日</span>
+                            <input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} aria-invalid={!!errors.dates} />
+                        </label>
+                        <label className="field">
+                            <span className="label">結束日</span>
+                            <input className="input" type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} aria-invalid={!!errors.dates} />
+                        </label>
                     </div>
-                ) : (
-                    trips.map(trip => (
-                        <div key={trip.id} className="address-card" style={{ padding: '20px', display: 'flex', flexDirection: 'column', cursor: 'pointer', transition: 'transform 0.2s', position: 'relative' }} onClick={() => onSelectTrip(trip.id)}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-                                <div style={{ backgroundColor: 'rgba(52, 88, 153, 0.1)', color: 'var(--fuji-blue)', padding: '10px', borderRadius: '12px' }}>
-                                    <CalendarDays size={24} />
-                                </div>
-                                <div>
-                                    <h4 style={{ fontSize: '1.2rem', color: 'var(--text-main)' }}>{trip.name}</h4>
-                                    <p style={{ fontSize: '0.85rem', color: '#999' }}>建立於 {new Date(trip.createdAt).toLocaleDateString()}</p>
-                                </div>
-                            </div>
+                    {errors.dates && (
+                        <p className="field-error" role="alert">
+                            {errors.dates}
+                        </p>
+                    )}
+                    <div className="form-actions">
+                        <button type="button" className="btn btn-secondary" onClick={() => setCreating(false)}>
+                            取消
+                        </button>
+                        <button type="submit" className="btn btn-primary">
+                            建立
+                        </button>
+                    </div>
+                </form>
+            )}
 
-                            <button
-                                className="btn-delete-ticket"
-                                style={{ position: 'absolute', top: '20px', right: '20px', backgroundColor: 'transparent', color: '#ccc' }}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteTrip(trip.id);
-                                }}
-                            >
-                                <Trash2 size={20} />
+            <h2 className="section-title">已儲存的行程（{trips.length}）</h2>
+            {trips.length === 0 ? (
+                <div className="empty-state">
+                    <CalendarDays size={36} aria-hidden="true" />
+                    <p>還沒有任何行程</p>
+                    <button type="button" className="btn btn-ghost" onClick={() => void handleSample()}>
+                        先建立一份北海道範例看看
+                    </button>
+                </div>
+            ) : (
+                <ul className="trip-list">
+                    {trips.map((t) => (
+                        <li key={t.id} className="trip-card">
+                            <button type="button" className="trip-open" onClick={() => void selectTrip(t.id)}>
+                                <span className="trip-icon" aria-hidden="true">
+                                    <CalendarDays size={22} />
+                                </span>
+                                <span style={{ minWidth: 0, flex: 1 }}>
+                                    <span className="trip-name" style={{ display: 'block' }}>
+                                        {t.name}
+                                    </span>
+                                    <span className="trip-meta">{summaries[t.id] ?? `建立於 ${new Date(t.createdAt).toLocaleDateString('zh-TW')}`}</span>
+                                </span>
+                                <ChevronRight size={20} aria-hidden="true" className="muted" />
+                                <span className="sr-only">開啟 {t.name}</span>
                             </button>
-                        </div>
-                    ))
-                )}
+                            <button type="button" className="btn-icon danger" onClick={() => void handleDelete(t.id, t.name)} aria-label={`刪除行程：${t.name}`}>
+                                <Trash2 size={20} aria-hidden="true" />
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+
+            <div className="footer-tools">
+                <h2 className="section-title" style={{ marginTop: 0 }}>
+                    備份你的資料
+                </h2>
+                <BackupButtons />
             </div>
-        </div>
+        </main>
     );
 }

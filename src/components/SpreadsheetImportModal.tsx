@@ -1,113 +1,99 @@
 import { useState } from 'react';
-import { FileUp, X } from 'lucide-react';
+import { Modal } from './ui/Modal';
 
 interface Props {
-    onImport: (tsv: string) => void;
+    /** 回傳 null＝成功並關閉；回傳字串＝顯示錯誤（空字串＝使用者取消或已另行提示，視窗保持開啟） */
+    onImport: (tsv: string) => Promise<string | null>;
     onClose: () => void;
 }
 
 export function SpreadsheetImportModal({ onImport, onClose }: Props) {
-    const [tsvData, setTsvData] = useState('');
+    const [text, setText] = useState('');
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
 
-    const handleImport = () => {
-        if (!tsvData.trim()) {
-            alert('請貼上行程表格內容');
+    const submit = async () => {
+        if (!text.trim()) {
+            setError('請先貼上表格內容');
             return;
         }
-        if (!window.confirm('準備匯入此表格，是否繼續？')) return;
-
-        onImport(tsvData);
-        onClose();
+        setBusy(true);
+        setError('');
+        try {
+            const result = await onImport(text);
+            if (result === null) onClose();
+            else setError(result);
+        } finally {
+            setBusy(false);
+        }
     };
 
     return (
-        <div className="add-form-overlay fade-in">
-            <div className="add-form-container" style={{ maxWidth: '500px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                    <h3 style={{ margin: 0, fontWeight: 700 }}><FileUp size={20} className="inline-icon" /> 智慧匯入行程表</h3>
-                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)' }}>
-                        <X size={24} />
-                    </button>
-                </div>
+        <Modal title="從試算表匯入行程" onClose={onClose} size="lg">
+            <div className="stack">
+                <p>在 Google 試算表或 Excel 選取行程表格，複製後貼到下方。不需要上傳檔案。</p>
+                <p className="small muted">電腦上操作最方便：選取儲存格，按 Ctrl+C（Mac 是 Command+C）複製，再到下方框內貼上。</p>
 
-                <div className="form-group">
-                    <label style={{ fontSize: '1rem', color: 'var(--text-main)', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
-                        免上傳檔案！直接從表格「複製貼上」即可 ⚡️
-                    </label>
-
-                    {(() => {
-                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-                        return (
-                            <div style={{ marginBottom: '16px', padding: '12px', backgroundColor: isMobile ? 'rgba(255,165,0,0.1)' : 'rgba(52,88,153,0.1)', borderRadius: '8px', border: isMobile ? '1px solid orange' : '1px solid var(--fuji-blue)' }}>
-                                <div style={{ fontWeight: 'bold', color: isMobile ? 'orange' : 'var(--fuji-blue)', marginBottom: '8px' }}>
-                                    📱 系統偵測您目前使用：{isMobile ? '手機版網頁' : '電腦版網頁'}
-                                </div>
-                                {isMobile ? (
-                                    <p style={{ fontSize: '0.85rem', color: '#666', margin: 0 }}>
-                                        建議：在手機上圈選 Excel 表格比較困難，強烈建議您**改用電腦版打開此網頁**進行匯入喔！
-                                    </p>
-                                ) : (
-                                    <p style={{ fontSize: '0.85rem', color: '#666', margin: 0 }}>
-                                        操作提示：請直接在您的 Excel 中將行程圈選後按下 `Ctrl+C`，再到下方大黑框按下 `Ctrl+V`。
-                                    </p>
-                                )}
-                            </div>
-                        );
-                    })()}
-
-                    <div style={{ marginBottom: '12px' }}>
-                        <p style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 'bold', marginBottom: '8px' }}>必須包含的表格欄位（順序隨意，但建議如下）：</p>
-                        <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse', border: '1px solid #ddd', textAlign: 'left' }}>
+                <details className="card">
+                    <summary style={{ cursor: 'pointer', fontWeight: 700, minHeight: 'var(--tap)', display: 'flex', alignItems: 'center' }}>支援的兩種表格格式</summary>
+                    <p className="small" style={{ margin: '8px 0' }}>
+                        <strong>直式</strong>：每列一個景點，欄位依序是「天數、景點名稱、分類、備註」。
+                    </p>
+                    <div style={{ overflowX: 'auto' }}>
+                        <table className="data-table">
                             <thead>
-                                <tr style={{ backgroundColor: '#f5f5f5' }}>
-                                    <th style={{ padding: '8px', border: '1px solid #ddd' }}>天數</th>
-                                    <th style={{ padding: '8px', border: '1px solid #ddd' }}>景點名稱</th>
-                                    <th style={{ padding: '8px', border: '1px solid #ddd' }}>分類</th>
-                                    <th style={{ padding: '8px', border: '1px solid #ddd' }}>備註 (選填)</th>
+                                <tr>
+                                    <th>天數</th>
+                                    <th>景點名稱</th>
+                                    <th>分類</th>
+                                    <th>備註（選填）</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}>1</td>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}>東京迪士尼</td>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}>景點</td>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}>抽快速通關</td>
+                                    <td>1</td>
+                                    <td>小樽運河</td>
+                                    <td>景點</td>
+                                    <td>傍晚點燈最美</td>
                                 </tr>
                                 <tr>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}>第 2 天</td>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}>一蘭拉麵</td>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}>食物</td>
-                                    <td style={{ padding: '8px', border: '1px solid #ddd' }}></td>
+                                    <td>第 2 天</td>
+                                    <td>一蘭拉麵</td>
+                                    <td>食物</td>
+                                    <td></td>
                                 </tr>
                             </tbody>
                         </table>
                     </div>
+                    <p className="small" style={{ margin: '12px 0 0' }}>
+                        <strong>橫式</strong>：每一天佔一組欄位並排，表頭寫「時間」「活動地點」「簡介」「備註」。
+                    </p>
+                </details>
 
-                    <textarea
-                        value={tsvData}
-                        onChange={(e) => setTsvData(e.target.value)}
-                        placeholder={'在此貼上您的 Excel 內容...\n(1\t東京迪士尼\t景點\t...)'}
-                        style={{
-                            width: '100%',
-                            height: '150px',
-                            padding: '12px',
-                            borderRadius: '8px',
-                            border: '1px solid #ccc',
-                            fontFamily: 'monospace',
-                            whiteSpace: 'pre',
-                            overflowWrap: 'normal',
-                            overflowX: 'auto',
-                            backgroundColor: '#f9f9f9'
-                        }}
-                    />
+                <div className="notice notice-warn" role="note">
+                    <span>匯入只會取代「表格裡有景點的那幾天」，其他天不受影響。匯入前會自動保存還原點，可以在「設定」頁還原。</span>
                 </div>
 
+                <label className="field">
+                    <span className="label">貼上表格內容</span>
+                    <textarea className="textarea code-box" style={{ minHeight: 160, whiteSpace: 'pre' }} value={text} onChange={(e) => setText(e.target.value)} placeholder={'1\t小樽運河\t景點\t傍晚點燈最美'} spellCheck={false} data-autofocus />
+                </label>
+
+                {error && (
+                    <div className="notice notice-error" role="alert">
+                        <span>{error}</span>
+                    </div>
+                )}
+
                 <div className="form-actions">
-                    <button className="btn-save" onClick={handleImport} style={{ width: '100%' }}>
-                        解析並匯入
+                    <button type="button" className="btn btn-secondary" onClick={onClose}>
+                        取消
+                    </button>
+                    <button type="button" className="btn btn-primary" onClick={() => void submit()} disabled={busy}>
+                        {busy ? '匯入中…' : '解析並匯入'}
                     </button>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 }

@@ -1,83 +1,49 @@
 import { useState, useEffect, useCallback } from 'react';
-import { itineraryStore, configStore } from '../db';
 import { type DayItinerary } from '../data/itinerary';
+import { ensureDays, updateDay as updateDayStored } from '../utils/tripData';
+import { onData } from '../utils/bus';
 
 export function useItinerary(tripId: string) {
     const [days, setDays] = useState<DayItinerary[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
 
-    const loadData = useCallback(async (showLoader = true) => {
+    const load = useCallback(async () => {
         if (!tripId) return;
         try {
-            if (showLoader) setLoading(true);
-            const appConfig = await configStore.getItem<any>(`${tripId}_app_config`);
-            if (!appConfig?.startDate || !appConfig?.endDate) {
-                setDays([]);
-                return;
-            }
-
-            const start = new Date(appConfig.startDate);
-            const end = new Date(appConfig.endDate);
-            const diffTime = Math.abs(end.getTime() - start.getTime());
-            const expectedDaysCount = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-
-            let orderConfig = await itineraryStore.getItem<string[]>(`${tripId}_dayOrder`);
-
-            // Re-seed if days changed
-            if (!orderConfig || orderConfig.length !== expectedDaysCount) {
-                const newOrder: string[] = [];
-                for (let i = 0; i < expectedDaysCount; i++) {
-                    const dayId = `day-${i + 1}`;
-                    newOrder.push(dayId);
-
-                    const existingDay = await itineraryStore.getItem<DayItinerary>(`${tripId}_${dayId}`);
-                    if (!existingDay) {
-                        const currentDate = new Date(start);
-                        currentDate.setDate(start.getDate() + i);
-
-                        await itineraryStore.setItem(`${tripId}_${dayId}`, {
-                            id: dayId,
-                            dayLabel: `Day ${i + 1}`,
-                            date: `${currentDate.getMonth() + 1}月${currentDate.getDate()}日`,
-                            locationLabel: appConfig.location || '設定地點',
-                            attractions: [],
-                            advice: {
-                                clothing: '等待即時天氣預報...',
-                                snowCondition: '請確保填寫正確的目的地與出發日期以獲取建議。'
-                            }
-                        } as DayItinerary);
-                    }
-                }
-                await itineraryStore.setItem(`${tripId}_dayOrder`, newOrder);
-                orderConfig = newOrder;
-            }
-
-            const loadedDays: DayItinerary[] = [];
-            for (const id of orderConfig) {
-                const day = await itineraryStore.getItem<DayItinerary>(`${tripId}_${id}`);
-                if (day) loadedDays.push(day);
-            }
-            setDays(loadedDays);
+            setDays(await ensureDays(tripId));
+            setError('');
         } catch (e) {
-            console.error('Failed to load itinerary from IndexedDB', e);
+            console.error('Failed to load itinerary', e);
+            setError('讀取行程失敗，請重新整理頁面');
         } finally {
-            if (showLoader) setLoading(false);
+            setLoading(false);
         }
     }, [tripId]);
 
     useEffect(() => {
-        loadData(true);
-        // Listen to focus to simulate a refresh when returning from settings
-        const handleFocus = () => loadData(true);
-        window.addEventListener('focus', handleFocus);
-        return () => window.removeEventListener('focus', handleFocus);
-    }, [loadData, tripId]); // include tripId to react to changes
+        void load();
+        const offA = onData('config', () => void load());
+        const offB = onData('itinerary', () => void load());
+        // 切回 App 時靜默重新讀取（不顯示讀取中，不會打斷正在編輯的表單）
+        const refresh = () => {
+            if (document.visibilityState === 'visible') void load();
+        };
+        document.addEventListener('visibilitychange', refresh);
+        return () => {
+            offA();
+            offB();
+            document.removeEventListener('visibilitychange', refresh);
+        };
+    }, [load]);
 
-    const saveDay = async (day: DayItinerary) => {
-        if (!tripId) return;
-        await itineraryStore.setItem(`${tripId}_${day.id}`, day);
-        await loadData(false); // Background refresh without showing spinner
-    };
+    /** 以最新儲存內容為基礎修改某一天；失敗會丟出錯誤。 */
+    const updateDay = useCallback(
+        async (dayId: string, fn: (d: DayItinerary) => DayItinerary) => {
+            await updateDayStored(tripId, dayId, fn);
+        },
+        [tripId],
+    );
 
-    return { days, loading, saveDay, refreshAgenda: loadData };
+    return { days, loading, error, updateDay, reload: load };
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { albumStore } from '../db';
 
 export interface DailyAlbum {
@@ -9,51 +9,43 @@ export interface DailyAlbum {
 export function usePhotoAlbum(tripId: string) {
     const [albums, setAlbums] = useState<DailyAlbum[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState('');
+
+    const load = useCallback(async () => {
+        if (!tripId) return;
+        try {
+            const saved = await albumStore.getItem<DailyAlbum[]>(`${tripId}_albums`);
+            setAlbums(Array.isArray(saved) ? saved.filter((a) => a && typeof a.dayId === 'string' && typeof a.url === 'string') : []);
+            setError('');
+        } catch (e) {
+            console.error('Failed to load albums', e);
+            setError('讀取相簿連結失敗，請重新整理頁面');
+        } finally {
+            setLoading(false);
+        }
+    }, [tripId]);
 
     useEffect(() => {
-        const loadAlbums = async () => {
-            if (!tripId) return;
-            try {
-                const saved = await albumStore.getItem<DailyAlbum[]>(`${tripId}_albums`);
-                if (saved) {
-                    setAlbums(saved);
-                } else {
-                    setAlbums([]);
-                }
-            } catch (e) {
-                console.error('Failed to load albums', e);
-            } finally {
-                setLoading(false);
-            }
-        };
-        loadAlbums();
-    }, [tripId]);
+        void load();
+    }, [load]);
+
+    const persist = async (next: DailyAlbum[]) => {
+        await albumStore.setItem(`${tripId}_albums`, next);
+        setAlbums(next);
+    };
 
     const saveAlbumLink = async (dayId: string, url: string) => {
         if (!tripId) return;
-        const newAlbums = [...albums];
-        const existingIndex = newAlbums.findIndex(a => a.dayId === dayId);
-
-        if (existingIndex >= 0) {
-            newAlbums[existingIndex] = { dayId, url };
-        } else {
-            newAlbums.push({ dayId, url });
-        }
-
-        setAlbums(newAlbums);
-        await albumStore.setItem(`${tripId}_albums`, newAlbums);
+        const next = albums.some((a) => a.dayId === dayId) ? albums.map((a) => (a.dayId === dayId ? { dayId, url } : a)) : [...albums, { dayId, url }];
+        await persist(next);
     };
 
     const removeAlbumLink = async (dayId: string) => {
         if (!tripId) return;
-        const newAlbums = albums.filter(a => a.dayId !== dayId);
-        setAlbums(newAlbums);
-        await albumStore.setItem(`${tripId}_albums`, newAlbums);
+        await persist(albums.filter((a) => a.dayId !== dayId));
     };
 
-    const getUrlForDay = (dayId: string) => {
-        return albums.find(a => a.dayId === dayId)?.url || '';
-    };
+    const getUrlForDay = (dayId: string) => albums.find((a) => a.dayId === dayId)?.url || '';
 
-    return { albums, loading, saveAlbumLink, removeAlbumLink, getUrlForDay };
+    return { albums, loading, error, saveAlbumLink, removeAlbumLink, getUrlForDay };
 }

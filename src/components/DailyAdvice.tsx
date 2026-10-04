@@ -1,80 +1,125 @@
 import { useState, useEffect } from 'react';
-import { Info, CloudRain, Sun, Cloud, Snowflake } from 'lucide-react';
+import { Info, CloudRain, Sun, Cloud, Snowflake, CloudFog, Zap, Lightbulb } from 'lucide-react';
 import { type DailyAdvice as DailyAdviceType } from '../data/itinerary';
-import { fetchWeather, type WeatherData } from '../utils/weather';
+import { fetchWeather, type WeatherStatus, type WeatherKind } from '../utils/weather';
 import { useConfigStore } from '../hooks/useConfigStore';
+import { addDaysISO, todayISO } from '../utils/date';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface Props {
     tripId: string;
-    advice: DailyAdviceType; // Fallback static advice
+    advice: DailyAdviceType;
     dayIndex: number;
+}
+
+// 舊版自動建立每天資料時寫入的占位字，不是使用者寫的內容，不顯示。
+const PLACEHOLDERS = new Set(['等待即時天氣預報...', '請確保填寫正確的目的地與出發日期以獲取建議。']);
+const real = (s: string | undefined) => (s && !PLACEHOLDERS.has(s.trim()) ? s.trim() : '');
+
+const KIND_LABEL: Record<WeatherKind, string> = { clear: '晴', cloudy: '多雲', fog: '霧', rain: '雨', snow: '雪', storm: '雷雨' };
+
+function WeatherIcon({ kind }: { kind: WeatherKind }) {
+    const p = { size: 20, 'aria-hidden': true as const };
+    if (kind === 'clear') return <Sun {...p} />;
+    if (kind === 'cloudy') return <Cloud {...p} />;
+    if (kind === 'fog') return <CloudFog {...p} />;
+    if (kind === 'rain') return <CloudRain {...p} />;
+    if (kind === 'snow') return <Snowflake {...p} />;
+    return <Zap {...p} />;
+}
+
+function statusMessage(s: WeatherStatus, location: string, past: boolean): string {
+    switch (s.state) {
+        case 'no-location':
+            return '到「設定」填寫主要地點，就能看到當天的天氣與穿著建議。';
+        case 'location-not-found':
+            return `找不到「${location}」的天氣資料。請到「設定」把主要地點改成常見的英文名稱，例如 Sapporo, Japan。`;
+        case 'out-of-range':
+            return past ? '這一天已經過了，不再顯示預報。' : '天氣預報只提供未來 16 天，出發前兩週內再回來看。';
+        case 'offline':
+            return '目前沒有網路，而且這個地點還沒有存過預報。連上網路後會自動更新。';
+        case 'error':
+            return `天氣服務暫時無法使用（${s.message}）。稍後會自動重試。`;
+        default:
+            return '';
+    }
 }
 
 export function DailyAdvice({ tripId, advice, dayIndex }: Props) {
     const { config } = useConfigStore(tripId);
-    const [liveWeather, setLiveWeather] = useState<WeatherData | null>(null);
-    const [loadingWeather, setLoadingWeather] = useState(false);
+    const online = useOnlineStatus();
+    const dateISO = addDaysISO(config.startDate, dayIndex);
+    const key = `${config.location}|${dateISO}|${online}`;
+    const [result, setResult] = useState<{ key: string; status: WeatherStatus } | null>(null);
 
     useEffect(() => {
-        if (!config.location || !config.startDate) return;
-
-        const loadWeather = async () => {
-            setLoadingWeather(true);
-            const startDateObj = new Date(config.startDate);
-            startDateObj.setDate(startDateObj.getDate() + dayIndex);
-            // Format YYYY-MM-DD
-            const targetDateStr = startDateObj.toISOString().split('T')[0];
-
-            try {
-                const data = await fetchWeather(config.location, targetDateStr);
-                setLiveWeather(data);
-            } catch (e) {
-                console.error("Open-Meteo failure", e);
-            } finally {
-                setLoadingWeather(false);
-            }
+        if (!dateISO) return;
+        let cancelled = false;
+        void fetchWeather(config.location, dateISO).then((status) => {
+            if (!cancelled) setResult({ key, status });
+        });
+        return () => {
+            cancelled = true;
         };
+    }, [config.location, dateISO, key]);
 
-        loadWeather();
-    }, [config.location, config.startDate, dayIndex]);
-
-    const getWeatherIcon = (code: number) => {
-        // WMO Weather interpretation codes
-        if (code === 0 || code === 1) return <Sun size={20} className="inline-icon" color="#ffb020" />;
-        if (code === 2 || code === 3) return <Cloud size={20} className="inline-icon" color="#9aa0a6" />;
-        if (code >= 50 && code <= 67) return <CloudRain size={20} className="inline-icon" color="#345899" />;
-        if (code >= 71 && code <= 77) return <Snowflake size={20} className="inline-icon" color="#71a8f5" />;
-        if (code >= 80) return <CloudRain size={20} className="inline-icon" color="#345899" />;
-        return <Cloud size={20} className="inline-icon" color="#9aa0a6" />;
-    };
+    const status: WeatherStatus | null = !dateISO ? { state: 'no-location' } : result && result.key === key ? result.status : null;
+    const past = !!dateISO && dateISO < todayISO();
+    const clothing = real(advice.clothing);
+    const note = real(advice.snowCondition);
 
     return (
-        <div className="daily-advice">
-            <h4 className="advice-title">
-                <Info size={16} className="advice-icon" /> 每日智慧叮嚀
-            </h4>
-            <div className="advice-content">
-                {liveWeather ? (
-                    <div className="live-weather-box" style={{ marginBottom: '10px', padding: '10px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', fontWeight: 'bold' }}>
-                            {getWeatherIcon(liveWeather.weatherCode)}
-                            <span>預估氣溫：{liveWeather.minTemp}°C ~ {liveWeather.maxTemp}°C</span>
-                        </div>
-                    </div>
-                ) : loadingWeather ? (
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-light)', marginBottom: '10px' }}>擷取全球雲端氣象資料中...</p>
-                ) : (
-                    <div className="live-weather-box" style={{ marginBottom: '10px', padding: '10px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#666' }}>
-                            <Info size={16} className="inline-icon" />
-                            <span style={{ fontSize: '0.85rem' }}>即時氣象將於出發前 7 日解鎖</span>
-                        </div>
-                    </div>
-                )}
+        <section className="daily-advice" aria-labelledby="advice-title">
+            <h3 id="advice-title">
+                <Lightbulb size={18} aria-hidden="true" /> 每日叮嚀
+            </h3>
 
-                <p><strong>自動穿著建議：</strong>{liveWeather ? liveWeather.advice : "由於距離行程大於七天，請隨時留意當地季節均溫變化，行前一週會自動切換為即時穿搭警報！"}</p>
-                <p><strong>雪況與備註：</strong>{advice.snowCondition}</p>
-            </div>
-        </div>
+            {status === null ? (
+                <div className="weather-box" role="status">
+                    <Info size={18} aria-hidden="true" /> 讀取天氣中…
+                </div>
+            ) : status.state === 'ok' ? (
+                <div className="weather-box">
+                    <WeatherIcon kind={status.data.kind} />
+                    <span>
+                        {KIND_LABEL[status.data.kind]}，{status.data.minTemp}°C ~ {status.data.maxTemp}°C
+                    </span>
+                </div>
+            ) : (
+                <div className="weather-box" role="status">
+                    <Info size={18} aria-hidden="true" />
+                    <span style={{ fontWeight: 400, fontSize: '0.9rem' }}>{statusMessage(status, config.location, past)}</span>
+                </div>
+            )}
+
+            {status?.state === 'ok' && (
+                <p>
+                    <strong>穿著建議：</strong>
+                    {status.data.advice}
+                </p>
+            )}
+            {clothing && (
+                <p>
+                    <strong>你的穿著備註：</strong>
+                    {clothing}
+                </p>
+            )}
+            {note && (
+                <p>
+                    <strong>雪況與備註：</strong>
+                    {note}
+                </p>
+            )}
+            {status?.state === 'ok' && (
+                <p className="meta">
+                    {status.stale ? `目前離線，顯示 ${new Date(status.fetchedAt).toLocaleString('zh-TW')} 存下的預報。` : '預報資料來源：'}
+                    {!status.stale && (
+                        <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">
+                            Open-Meteo
+                        </a>
+                    )}
+                </p>
+            )}
+        </section>
     );
 }

@@ -1,116 +1,115 @@
 import { useState } from 'react';
 import { useItinerary } from '../../hooks/useItinerary';
+import { useConfigStore } from '../../hooks/useConfigStore';
 import { usePhotoAlbum } from '../../hooks/usePhotoAlbum';
 import { Link, Image as ImageIcon, ExternalLink, Save, Edit3, Trash2 } from 'lucide-react';
+import { normalizeHttpUrl } from '../../utils/url';
+import { useUi } from '../ui/uiContext';
+import { dayDisplay } from '../../utils/dayDisplay';
 
 export function PhotoAlbum({ tripId }: { tripId: string }) {
-    const { days, loading: itineraryLoading } = useItinerary(tripId);
-    const { loading: albumsLoading, saveAlbumLink, removeAlbumLink, getUrlForDay } = usePhotoAlbum(tripId);
+    const { days, loading: dl } = useItinerary(tripId);
+    const { config } = useConfigStore(tripId);
+    const { loading: al, error, saveAlbumLink, removeAlbumLink, getUrlForDay } = usePhotoAlbum(tripId);
+    const ui = useUi();
 
-    const [editingDayId, setEditingDayId] = useState<string | null>(null);
-    const [tempUrl, setTempUrl] = useState('');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [temp, setTemp] = useState('');
+    const [urlError, setUrlError] = useState('');
 
-    if (itineraryLoading || albumsLoading) return <div className="tab-placeholder fade-in">載入相簿資訊中...</div>;
+    if (dl || al) return <div className="loading" role="status">載入相簿資訊中…</div>;
+    if (error) return <div className="notice notice-error" role="alert">{error}</div>;
 
-    const handleEditClick = (dayId: string, currentUrl: string) => {
-        setTempUrl(currentUrl);
-        setEditingDayId(dayId);
+    const startEdit = (dayId: string, url: string) => {
+        setTemp(url);
+        setUrlError('');
+        setEditingId(dayId);
     };
 
     const handleSave = async (dayId: string) => {
-        if (!tempUrl.trim()) {
-            await removeAlbumLink(dayId);
-        } else {
-            // Basic URL validation
-            let finalUrl = tempUrl.trim();
-            if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-                finalUrl = 'https://' + finalUrl;
-            }
-            await saveAlbumLink(dayId, finalUrl);
+        if (!temp.trim()) {
+            if (await ui.run(() => removeAlbumLink(dayId), '移除連結失敗')) setEditingId(null);
+            return;
         }
-        setEditingDayId(null);
+        const url = normalizeHttpUrl(temp);
+        if (!url) {
+            setUrlError('這不是有效的網址。請貼上以 https:// 開頭的相簿分享連結。');
+            return;
+        }
+        if (await ui.run(() => saveAlbumLink(dayId, url), '儲存連結失敗', '已儲存相簿連結')) setEditingId(null);
+    };
+
+    const handleRemove = async (dayId: string, label: string) => {
+        const ok = await ui.confirm({ title: '移除相簿連結？', message: `${label} 的相簿連結會被移除（相簿本身不受影響）。`, confirmText: '移除', danger: true });
+        if (ok) await ui.run(() => removeAlbumLink(dayId), '移除連結失敗');
     };
 
     return (
-        <div className="fade-in" style={{ paddingBottom: '80px' }}>
-            <div style={{ backgroundColor: 'var(--sage-green)', color: 'white', padding: '24px 20px', borderRadius: '16px', marginBottom: '24px', boxShadow: '0 8px 16px rgba(135, 169, 107, 0.2)' }}>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ImageIcon size={24} /> 共享相簿集
-                </h2>
-                <p style={{ opacity: 0.9, fontSize: '0.9rem', lineHeight: 1.5 }}>
-                    您可以為每天的行程綁定 Google Photos 或 LINE 相簿網址。只要貼上連結，所有同行朋友都能一鍵前往上傳、下載當天的美照！
-                </p>
-            </div>
+        <div className="tab-panel">
+            <h2 className="section-title">
+                <ImageIcon size={22} aria-hidden="true" /> 每日相簿連結
+            </h2>
+            <p className="section-note">
+                為每一天綁定 Google 相簿或 LINE 相簿的分享網址，同行的人一點就能去上傳或下載。這裡只存連結，不會上傳你的照片。
+            </p>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {days.length === 0 && (
-                    <div style={{ textAlign: 'center', color: 'var(--text-light)', padding: '40px 20px' }}>
-                        請先建立行程，即可為每一天分配專屬相簿連結。
-                    </div>
-                )}
+            {days.length === 0 && <div className="empty-state">請先到「設定」確認行程日期，就能為每一天加相簿連結。</div>}
+
+            <div className="stack">
                 {days.map((day, index) => {
-                    const currentUrl = getUrlForDay(day.id);
-                    const isEditing = editingDayId === day.id;
-
+                    const url = getUrlForDay(day.id);
+                    const editing = editingId === day.id;
+                    const d = dayDisplay(day, index, config.startDate);
+                    const label = `Day ${index + 1}（${d.date}）`;
                     return (
-                        <div key={day.id} className="address-card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <div key={day.id} className="card">
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <span style={{ backgroundColor: 'var(--sage-green)', color: 'white', padding: '2px 8px', borderRadius: '8px', fontSize: '0.8rem' }}>Day {index + 1}</span>
-                                    {day.date}
-                                </h3>
-                                {!isEditing && currentUrl && (
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button onClick={() => handleEditClick(day.id, currentUrl)} style={{ background: 'none', border: 'none', color: 'var(--text-light)', padding: '4px' }}>
-                                            <Edit3 size={18} />
+                                <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1.05rem' }}>{label}</h3>
+                                {!editing && url && (
+                                    <div style={{ display: 'flex' }}>
+                                        <button type="button" className="btn-icon" onClick={() => startEdit(day.id, url)} aria-label={`編輯 ${label} 的連結`}>
+                                            <Edit3 size={18} aria-hidden="true" />
                                         </button>
-                                        <button onClick={() => removeAlbumLink(day.id)} style={{ background: 'none', border: 'none', color: '#ff4d4f', padding: '4px' }}>
-                                            <Trash2 size={18} />
+                                        <button type="button" className="btn-icon danger" onClick={() => void handleRemove(day.id, label)} aria-label={`移除 ${label} 的連結`}>
+                                            <Trash2 size={18} aria-hidden="true" />
                                         </button>
                                     </div>
                                 )}
                             </div>
 
-                            {isEditing ? (
-                                <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
-                                    <div style={{ position: 'relative' }}>
-                                        <Link size={16} style={{ position: 'absolute', left: '10px', top: '12px', color: '#999' }} />
-                                        <input
-                                            type="url"
-                                            className="album-input"
-                                            value={tempUrl}
-                                            onChange={(e) => setTempUrl(e.target.value)}
-                                            placeholder="貼上 Google 相簿分享連結 (留空為刪除)"
-                                            style={{ width: '100%', padding: '10px 10px 10px 32px', borderRadius: '8px', border: '1px solid var(--sage-green)', fontSize: '0.95rem' }}
-                                            autoFocus
-                                        />
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '8px' }}>
-                                        <button
-                                            onClick={() => setEditingDayId(null)}
-                                            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #ddd', background: 'transparent', fontWeight: 600, color: 'var(--text-light)' }}
-                                        >取消</button>
-                                        <button
-                                            onClick={() => handleSave(day.id)}
-                                            style={{ flex: 1, padding: '10px', borderRadius: '8px', border: 'none', background: 'var(--sage-green)', fontWeight: 600, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                                        ><Save size={16} /> 儲存連結</button>
-                                    </div>
-                                </div>
-                            ) : currentUrl ? (
-                                <a
-                                    href={currentUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: 'var(--snow-white)', border: '2px solid var(--sage-green)', color: 'var(--sage-green)', padding: '12px', borderRadius: '12px', fontWeight: 600, textDecoration: 'none' }}
+                            {editing ? (
+                                <form
+                                    style={{ marginTop: 10 }}
+                                    onSubmit={(e) => {
+                                        e.preventDefault();
+                                        void handleSave(day.id);
+                                    }}
                                 >
-                                    <ExternalLink size={18} /> 前往瀏覽 / 新增照片
+                                    <label className="field">
+                                        <span className="label">相簿分享連結（留空儲存＝移除）</span>
+                                        <input className="input" type="text" inputMode="url" value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="https://photos.app.goo.gl/…" aria-invalid={!!urlError} data-autofocus />
+                                        {urlError && (
+                                            <p className="field-error" role="alert">
+                                                {urlError}
+                                            </p>
+                                        )}
+                                    </label>
+                                    <div className="form-actions">
+                                        <button type="button" className="btn btn-secondary" onClick={() => setEditingId(null)}>
+                                            取消
+                                        </button>
+                                        <button type="submit" className="btn btn-primary">
+                                            <Save size={16} aria-hidden="true" /> 儲存
+                                        </button>
+                                    </div>
+                                </form>
+                            ) : url ? (
+                                <a className="link-btn" style={{ marginTop: 10, justifyContent: 'center' }} href={url} target="_blank" rel="noopener noreferrer">
+                                    <ExternalLink size={18} aria-hidden="true" /> 前往相簿（新增或瀏覽照片）
                                 </a>
                             ) : (
-                                <button
-                                    onClick={() => handleEditClick(day.id, '')}
-                                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', backgroundColor: '#f0f0f0', border: '1px dashed #ccc', color: 'var(--text-light)', padding: '12px', borderRadius: '12px', fontWeight: 500 }}
-                                >
-                                    <Link size={18} /> 點此貼上連結 (如 Line 相簿)
+                                <button type="button" className="btn-dashed" style={{ marginTop: 10, minHeight: 48 }} onClick={() => startEdit(day.id, '')}>
+                                    <Link size={18} aria-hidden="true" /> 貼上相簿連結
                                 </button>
                             )}
                         </div>

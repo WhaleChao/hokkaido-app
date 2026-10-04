@@ -1,0 +1,132 @@
+/* ===== 設計 tokens =====
+   與個人網站（whalechao.github.io）同一套：紙色底、墨藍字、黃銅點綴、明體標題、黑體內文。
+   深色主題有兩種來源：系統偏好（預設）與使用者在設定頁手動選擇（html[data-theme]）。 */
+
+:root {
+    --paper: #f6f2ea;
+    --paper-2: #eee8da;
+    --card: #fbf9f4;
+    --card-raised: #ffffff;
+    --ink: #14202e;
+    --ink-soft: #46515e;
+    --muted: #5a6470;
+    --line: rgba(20, 32, 46, 0.14);
+    --line-strong: rgba(20, 32, 46, 0.34);
+    --brass: #7d5a1b; /* 文字用，對比 > 5:1 */
+    --brass-bright: #b88a3c; /* 裝飾與焦點環用 */
+    --navy: #12233a;
+    --on-navy: #f3eee3;
+    --on-navy-soft: rgba(243, 238, 227, 0.78);
+    --btn-bg: #12233a;
+    --btn-fg: #f6f2ea;
+    --header-bg: rgba(246, 242, 234, 0.9);
+    --nav-bg: rgba(251, 249, 244, 0.94);
+    --shadow: 0 18px 44px -26px rgba(18, 35, 58, 0.5);
+    --overlay: rgba(10, 18, 28, 0.55);
+
+    /* 功能色（文字用，皆通過 4.5:1） */
+    --danger: #a3261d;
+    --danger-bg: #f8e3df;
+    --ok: #2c6a3a;
+    --ok-bg: #e0efe2;
+    --warn: #7a4a00;
+    --warn-bg: #f6e8c8;
+    --info-bg: #e4ebf3;
+
+    /* 景點標籤：淡底深字，不再是白字配粉彩 */
+    --tag-food-bg: #f6dfd3;
+    --tag-food-fg: #7a2f12;
+    --tag-shop-bg: #f4e6c4;
+    --tag-shop-fg: #6b4300;
+    --tag-photo-bg: #e6def3;
+    --tag-photo-fg: #4a2f78;
+    --tag-default-bg: #e7e3d8;
+    --tag-default-fg: #3d4651;
+
+    --serif: 'Noto Serif TC', 'Songti TC', 'PMingLiU', 'Source Han Serif TC', serif;
+    --sans: 'Noto Sans TC', -apple-system, 'PingFang TC', 'Microsoft JhengHei', 'Helvetica Neue', Arial, sans-serif;
+
+    --radius: 14px;
+    --radius-sm: 10px;
+    --tap: 44px;
+    --gutter: 16px;
+    --nav-h: 64px;
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+    color-scheme: light;
+}
+
+/* 系統深色（使用者沒有手動指定淺色時） */
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+        --paper: #0d1722;
+        --paper-2: #111e2c;
+        --card: #142234;
+        --card-raised: #182a40;
+        --ink: #ece6d8;
+        --ink-soft: #bcc3cc;
+        --muted: #a2adb9;
+        --line: rgba(236, 230, 216, 0.15);
+        --line-strong: rgba(236, 230, 216, 0.36);
+        --brass: #dcb46a;
+        --brass-bright: #d4aa5f;
+        --btn-bg: #dcb46a;
+        --btn-fg: #0d1722;
+        --header-bg: rgba(13, 23, 34, 0.9);
+        --nav-bg: rgba(17, 30, 44, 0.94);
+        --shadow: 0 18px 44px -26px rgba(0, 0, 0, 0.85);
+        --overlay: rgba(0, 0, 0, 0.66);
+        --danger: #ff9b90;
+        --danger-bg: #3a1c1a;
+        --ok: #8fd19e;
+        --ok-bg: #16301d;
+        --warn: #f0c36a;
+        --warn-bg: #3a2c0d;
+        --info-bg: #17283a;
+        --tag-food-bg: #4a2418;
+        --tag-food-fg: #ffc9b3;
+        --tag-shop-bg: #43320f;
+        --tag-shop-fg: #f6d58f;
+        --tag-photo-bg: #33264f;
+        --tag-photo-fg: #d9c8f5;
+        --tag-default-bg: #26323f;
+        --tag-default-fg: #d2d8df;
+        color-scheme: dark;
+    }
+}
+
+/* 使用者手動選深色 */
+:root[data-theme='dark'] {
+    --paper: #0d1722;
+    --paper-2: #111e2c;
+    --card: #142234;
+    --card-raised: #182a40;
+    --ink: #ece6d8;
+    --ink-soft: #bcc3cc;
+    --muted: #a2adb9;
+    --line: rgba(236, 230, 216, 0.15);
+    --line-strong: rgba(236, 230, 216, 0.36);
+    --brass: #dcb46a;
+    --brass-bright: #d4aa5f;
+    --btn-bg: #dcb46a;
+    --btn-fg: #0d1722;
+    --header-bg: rgba(13, 23, 34, 0.9);
+    --nav-bg: rgba(17, 30, 44, 0.94);
+    --shadow: 0 18px 44px -26px rgba(0, 0, 0, 0.85);
+    --overlay: rgba(0, 0, 0, 0.66);
+    --danger: #ff9b90;
+    --danger-bg: #3a1c1a;
+    --ok: #8fd19e;
+    --ok-bg: #16301d;
+    --warn: #f0c36a;
+    --warn-bg: #3a2c0d;
+    --info-bg: #17283a;
+    --tag-food-bg: #4a2418;
+    --tag-food-fg: #ffc9b3;
+    --tag-shop-bg: #43320f;
+    --tag-shop-fg: #f6d58f;
+    --tag-photo-bg: #33264f;
+    --tag-photo-fg: #d9c8f5;
+    --tag-default-bg: #26323f;
+    --tag-default-fg: #d2d8df;
+    color-scheme: dark;
+}

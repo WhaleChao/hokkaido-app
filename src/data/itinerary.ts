@@ -10,6 +10,13 @@ export interface TransitDetails {
     cost?: string;
 }
 
+export interface SubOption {
+    label: string; // 例如「A 方案」
+    name: string;
+    description: string;
+    mapQuery: string;
+}
+
 export interface Attraction {
     id: string;
     name: string;
@@ -27,6 +34,7 @@ export interface Attraction {
     photoTip?: string;
     hasPhotoUpload?: boolean;
     transitDetails?: TransitDetails; // Exclusive to category === '交通'
+    subOptions?: SubOption[]; // 試算表匯入時「1. xxx 2. yyy」拆出的多選項
 }
 
 export interface DailyAdvice {
@@ -43,7 +51,8 @@ export interface DayItinerary {
     advice: DailyAdvice;
 }
 
-export const itineraryData: DayItinerary[] = [
+/** 範例行程（北海道三天），只在使用者按「建立範例行程」時使用。 */
+export const sampleDays: DayItinerary[] = [
     {
         id: 'day1',
         dayLabel: 'Day 1',

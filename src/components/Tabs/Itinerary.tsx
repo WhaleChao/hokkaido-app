@@ -1,111 +1,61 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DaySelector } from '../DaySelector';
+import { dayDisplay } from '../../utils/dayDisplay';
 import { AttractionCard } from '../AttractionCard';
 import { DailyAdvice } from '../DailyAdvice';
 import { useItinerary } from '../../hooks/useItinerary';
 import { AddAttractionForm } from './AddAttractionForm';
-import { Edit2, Plus, X, FileUp, GripVertical, MapPin } from 'lucide-react';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    TouchSensor,
-    type DragEndEvent
-} from '@dnd-kit/core';
-import {
-    arrayMove,
-    SortableContext,
-    sortableKeyboardCoordinates,
-    verticalListSortingStrategy,
-    useSortable
-} from '@dnd-kit/sortable';
+import { Edit2, Plus, X, FileUp, GripVertical, MapPin, Check, CalendarX } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, TouchSensor, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { type DayItinerary, type Attraction } from '../../data/itinerary';
-import { parseSpreadsheetData } from '../../utils/parser';
+import { type Attraction } from '../../data/itinerary';
+import { parseSpreadsheetData, type ParseResult } from '../../utils/parser';
 import { SpreadsheetImportModal } from '../SpreadsheetImportModal';
 import { useConfigStore } from '../../hooks/useConfigStore';
+import { useUi } from '../ui/uiContext';
+import { takeSnapshot, writeDays, reconcileOrder, patchConfig } from '../../utils/tripData';
+import { addDaysISO, todayISO } from '../../utils/date';
+import { itineraryStore } from '../../db';
+import { mapsSearchUrl, openExternal } from '../../utils/url';
+import clsx from 'clsx';
 
-function SortableAttractionItem({
-    attraction,
-    editMode,
-    onDelete,
-    onEdit,
-    onSaveEdit,
-    onCancelEdit,
-    isEditing,
-    defaultRegion,
-    onAutoSave
-}: {
+interface SortableProps {
     attraction: Attraction;
     editMode: boolean;
+    isEditing: boolean;
+    defaultRegion?: string;
     onDelete: (id: string) => void;
     onEdit: () => void;
     onSaveEdit: (updated: Attraction) => void;
     onCancelEdit: () => void;
-    onAutoSave?: (updated: Attraction) => void;
-    isEditing: boolean;
-    defaultRegion?: string;
-}) {
-    const {
-        attributes,
-        listeners,
-        setNodeRef,
-        transform,
-        transition,
-    } = useSortable({ id: attraction.id });
+}
 
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        zIndex: transform ? 1 : 0,
-        position: 'relative' as const,
-    };
+function SortableAttractionItem({ attraction, editMode, isEditing, defaultRegion, onDelete, onEdit, onSaveEdit, onCancelEdit }: SortableProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: attraction.id, disabled: !editMode || isEditing });
+    const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 5 : undefined };
 
     return (
-        <div ref={setNodeRef} style={style} className="attraction-wrapper">
-            {editMode && (
-                <div
-                    {...attributes}
-                    {...listeners}
-                    style={{ position: 'absolute', left: '-5px', top: '50%', transform: 'translateY(-50%)', cursor: 'grab', color: '#ccc', padding: '10px', zIndex: 10, touchAction: 'none' }}
-                >
-                    <GripVertical size={24} />
-                </div>
-            )}
-            <div style={{ marginLeft: editMode ? '25px' : '0', transition: 'margin 0.3s' }}>
-                {isEditing ? (
-                    <div style={{ marginBottom: '16px', backgroundColor: 'var(--snow-white)', padding: '16px', borderRadius: '16px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', border: '1px solid var(--fuji-blue-light)' }}>
-                        <AddAttractionForm
-                            editAttraction={attraction}
-                            onSave={onSaveEdit}
-                            onCancel={onCancelEdit}
-                            onAutoSave={onAutoSave}
-                        />
-                    </div>
-                ) : (
-                    <AttractionCard attraction={attraction} defaultRegion={defaultRegion} />
-                )}
-            </div>
+        <div ref={setNodeRef} style={style} className={clsx('attraction-wrapper', editMode && !isEditing && 'editing-pad')}>
             {editMode && !isEditing && (
-                <div style={{ position: 'absolute', top: '-10px', right: '-10px', display: 'flex', gap: '8px', zIndex: 20 }}>
-                    <button
-                        className="btn-action-circle edit"
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onEdit(); }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        title="編輯此景點"
-                    >
-                        <Edit2 size={16} />
+                <button type="button" className="drag-handle" {...attributes} {...listeners} aria-label={`拖曳排序：${attraction.name}（鍵盤可按空白鍵拿起、方向鍵移動）`}>
+                    <GripVertical size={22} aria-hidden="true" />
+                </button>
+            )}
+            {isEditing ? (
+                <div className="card">
+                    <AddAttractionForm editAttraction={attraction} onSave={onSaveEdit} onCancel={onCancelEdit} />
+                </div>
+            ) : (
+                <AttractionCard attraction={attraction} defaultRegion={defaultRegion} />
+            )}
+            {editMode && !isEditing && (
+                <div className="card-actions-edit">
+                    <button type="button" className="btn-circle" onClick={onEdit} aria-label={`編輯：${attraction.name}`}>
+                        <Edit2 size={18} aria-hidden="true" />
                     </button>
-                    <button
-                        className="btn-action-circle delete"
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(attraction.id); }}
-                        onPointerDown={(e) => e.stopPropagation()}
-                        title="移除此景點"
-                    >
-                        <X size={18} />
+                    <button type="button" className="btn-circle danger" onClick={() => onDelete(attraction.id)} aria-label={`刪除：${attraction.name}`}>
+                        <X size={20} aria-hidden="true" />
                     </button>
                 </div>
             )}
@@ -115,274 +65,208 @@ function SortableAttractionItem({
 
 export function Itinerary({ tripId }: { tripId: string }) {
     const { config } = useConfigStore(tripId);
-    const { days, loading, saveDay } = useItinerary(tripId);
-    const [selectedDayId, setSelectedDayId] = useState<string>('');
+    const { days, loading, error, updateDay, reload } = useItinerary(tripId);
+    const ui = useUi();
+    const [selectedDayId, setSelectedDayId] = useState('');
     const [editMode, setEditMode] = useState(false);
     const [showAddForm, setShowAddForm] = useState(false);
     const [showImportModal, setShowImportModal] = useState(false);
-
-    // Phase 14 extensions
-    const [editingAttractionId, setEditingAttractionId] = useState<string | null>(null);
-    const [planVariantFilter, setPlanVariantFilter] = useState<string>('ALL');
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [variantFilter, setVariantFilter] = useState('ALL');
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-        useSensor(TouchSensor, { activationConstraint: { delay: 100, tolerance: 5 } }),
-        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+        useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 6 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
-    useEffect(() => {
-        if (days.length > 0 && !selectedDayId) {
-            setSelectedDayId(days[0].id);
-        }
-    }, [days, selectedDayId]);
-
-    if (loading) return <div className="tab-placeholder fade-in">載入行程中...</div>;
-    if (!days.length) return <div className="tab-placeholder fade-in">目前沒有行程</div>;
-
-    const currentDay = days.find(d => d.id === selectedDayId) || days[0];
-
-    const handleAddAttraction = (attraction: Attraction) => {
-        const updatedAttractions = [...currentDay.attractions, attraction];
-        const updatedDay: DayItinerary = { ...currentDay, attractions: updatedAttractions };
-        saveDay(updatedDay);
-        setShowAddForm(false);
-    };
-
-    const handleSaveEditAttraction = (updatedAttraction: Attraction) => {
-        const updatedAttractions = currentDay.attractions.map(a =>
-            a.id === updatedAttraction.id ? updatedAttraction : a
+    if (loading) return <div className="loading" role="status">載入行程中…</div>;
+    if (error) return <div className="notice notice-error" role="alert">{error}</div>;
+    if (!days.length) {
+        return (
+            <div className="empty-state">
+                <CalendarX size={36} aria-hidden="true" />
+                <p>目前沒有可顯示的行程天數。</p>
+                <p className="small">請到「設定」檢查出發日與結束日是否正確。</p>
+            </div>
         );
-        const updatedDay: DayItinerary = { ...currentDay, attractions: updatedAttractions };
-        saveDay(updatedDay);
-        setEditingAttractionId(null);
+    }
+
+    const today = todayISO();
+    const todayIndex = days.findIndex((d, i) => dayDisplay(d, i, config.startDate).iso === today);
+    const currentDay = days.find((d) => d.id === selectedDayId) ?? days[todayIndex >= 0 ? todayIndex : 0];
+    const currentIndex = days.findIndex((d) => d.id === currentDay.id);
+
+    const saveAttractions = (fn: (list: Attraction[]) => Attraction[], failText: string) =>
+        ui.run(() => updateDay(currentDay.id, (d) => ({ ...d, attractions: fn(d.attractions) })), failText);
+
+    const handleAdd = async (attraction: Attraction) => {
+        if (await saveAttractions((l) => [...l, attraction], '新增景點失敗')) setShowAddForm(false);
     };
 
-    const handleDeleteAttraction = (attractionId: string) => {
-        if (!window.confirm('確定要刪除此景點嗎？')) return;
-        const updatedAttractions = currentDay.attractions.filter(a => a.id !== attractionId);
-        const updatedDay: DayItinerary = { ...currentDay, attractions: updatedAttractions };
-        saveDay(updatedDay);
+    const handleSaveEdit = async (updated: Attraction) => {
+        if (await saveAttractions((l) => l.map((a) => (a.id === updated.id ? updated : a)), '儲存景點失敗')) setEditingId(null);
     };
 
-    const handleImportSpreadsheet = async (tsvData: string) => {
-        const newDays = parseSpreadsheetData(tsvData, days);
-        // Save all updated days back to IndexedDB
-        for (const day of newDays) {
-            await saveDay(day);
-        }
-        alert('解析與匯入完成！');
+    const handleDelete = async (id: string) => {
+        const target = currentDay.attractions.find((a) => a.id === id);
+        const ok = await ui.confirm({ title: '刪除這個景點？', message: target ? `「${target.name}」會從 ${currentDay.dayLabel} 移除，無法復原。` : undefined, confirmText: '刪除', danger: true });
+        if (ok) await saveAttractions((l) => l.filter((a) => a.id !== id), '刪除景點失敗');
     };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
-        if (over && active.id !== over.id) {
-            const oldIndex = currentDay.attractions.findIndex(a => a.id === active.id);
-            const newIndex = currentDay.attractions.findIndex(a => a.id === over.id);
-            const reordered = arrayMove(currentDay.attractions, oldIndex, newIndex);
-            saveDay({ ...currentDay, attractions: reordered });
-        }
+        if (!over || active.id === over.id) return;
+        void saveAttractions((list) => {
+            const from = list.findIndex((a) => a.id === active.id);
+            const to = list.findIndex((a) => a.id === over.id);
+            return from < 0 || to < 0 ? list : arrayMove(list, from, to);
+        }, '調整順序失敗');
     };
 
-    const uniqueVariants = Array.from(new Set(
-        currentDay.attractions
-            .map(a => a.planVariant?.trim())
-            .filter(Boolean)
-    )) as string[];
+    /** 回傳錯誤字串讓匯入視窗顯示；成功回傳 null。 */
+    const handleImport = async (tsv: string): Promise<string | null> => {
+        const result: ParseResult = parseSpreadsheetData(tsv, days);
+        if (!result.ok) return result.error ?? '無法解析表格';
 
-    const hasPlanVariants = uniqueVariants.length > 0;
-    const filteredAttractions = currentDay.attractions.filter(a => {
-        if (!hasPlanVariants || planVariantFilter === 'ALL') return true;
-        // If an item doesn't have a planVariant selected, show it universally
-        if (!a.planVariant?.trim()) return true;
-        return a.planVariant.trim() === planVariantFilter;
+        const replaced = result.touchedIndexes.reduce((n, i) => n + (days[i]?.attractions.length ?? 0), 0);
+        const lines = [`將匯入 ${result.parsedItems} 個景點到 ${result.touchedDays} 天，取代這些天原有的 ${replaced} 個景點。`];
+        if (result.addedDays > 0) lines.push(`表格天數比行程多，會自動把結束日延後 ${result.addedDays} 天。`);
+        lines.push(...result.warnings, '匯入前會自動保存一份還原點，可以在「設定」頁還原。');
+        const ok = await ui.confirm({ title: '確定匯入這份表格？', message: lines.join('\n'), confirmText: '匯入' });
+        if (!ok) return '';
+
+        const done = await ui.run(
+            async () => {
+                await takeSnapshot(tripId, '匯入試算表前自動保存');
+                if (result.addedDays > 0) {
+                    const end = addDaysISO(config.startDate, result.days.length - 1);
+                    if (end) await patchConfig(tripId, { endDate: end });
+                }
+                const order = reconcileOrder(await itineraryStore.getItem<string[]>(`${tripId}_dayOrder`), result.days.length);
+                await writeDays(tripId, result.days, order);
+                await reload();
+            },
+            '匯入失敗，原本的行程沒有被改動',
+            `匯入完成：${result.parsedItems} 個景點`,
+        );
+        return done ? null : '';
+    };
+
+    const uniqueVariants = Array.from(new Set(currentDay.attractions.map((a) => a.planVariant?.trim()).filter(Boolean))) as string[];
+    const activeVariant = uniqueVariants.includes(variantFilter) ? variantFilter : 'ALL';
+    const visible = currentDay.attractions.filter((a) => activeVariant === 'ALL' || !a.planVariant?.trim() || a.planVariant.trim() === activeVariant);
+
+    const totalMins = currentDay.attractions.reduce((sum, a) => sum + (a.durationMinutes || 0), 0);
+    const over = totalMins > 720;
+
+    const currentISO = dayDisplay(currentDay, currentIndex, config.startDate).iso;
+    const hotels = (config.accommodations ?? []).filter((acc) => {
+        if (!acc.checkIn || !acc.checkOut || !currentISO) return true;
+        return currentISO >= acc.checkIn && currentISO <= acc.checkOut;
     });
 
     return (
-        <div className="itinerary-view fade-in">
-            <div className="itinerary-toolbar" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button
-                    className={`btn-toggle-edit`}
-                    style={{ backgroundColor: 'white', color: 'var(--text-main)', border: '1px solid #ddd', width: '40px', height: '40px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                    onClick={() => setShowImportModal(true)}
-                    title="從 Excel / Sheets 匯入"
-                >
-                    <FileUp size={20} />
+        <div className="tab-panel">
+            <div className="toolbar">
+                <button type="button" className="btn-toolbar" onClick={() => setShowImportModal(true)}>
+                    <FileUp size={18} aria-hidden="true" /> 匯入表格
                 </button>
                 <button
-                    className={`btn-toggle-edit ${editMode ? 'active' : ''}`}
+                    type="button"
+                    className={clsx('btn-toolbar', editMode && 'active')}
+                    aria-pressed={editMode}
                     onClick={() => {
                         setEditMode(!editMode);
-                        if (editMode) {
-                            setShowAddForm(false);
-                        }
+                        setShowAddForm(false);
+                        setEditingId(null);
                     }}
                 >
-                    {editMode ? <X size={16} /> : <Edit2 size={16} />}
-                    {editMode ? '完成編輯' : '編輯行程'}
+                    {editMode ? <Check size={18} aria-hidden="true" /> : <Edit2 size={18} aria-hidden="true" />}
+                    {editMode ? '完成' : '編輯行程'}
                 </button>
             </div>
 
-            <DaySelector
-                days={days}
-                selectedDayId={selectedDayId || currentDay.id}
-                onSelectDay={setSelectedDayId}
-            />
+            <DaySelector days={days} selectedDayId={currentDay.id} onSelectDay={setSelectedDayId} startDate={config.startDate} todayISO={today} />
 
-            {/* N-Plan Tabs */
-                hasPlanVariants && (
-                    <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '24px', flexWrap: 'wrap' }}>
-                        {['ALL', ...uniqueVariants].map(variant => (
-                            <button
-                                key={variant}
-                                onClick={() => setPlanVariantFilter(variant)}
-                                style={{
-                                    padding: '8px 24px',
-                                    borderRadius: '24px',
-                                    fontSize: '0.9rem',
-                                    fontWeight: 600,
-                                    transition: 'all 0.2s',
-                                    border: planVariantFilter === variant ? 'none' : '1px solid #ddd',
-                                    backgroundColor: planVariantFilter === variant ? 'var(--fuji-blue)' : 'white',
-                                    color: planVariantFilter === variant ? 'white' : 'var(--text-light)',
-                                    boxShadow: planVariantFilter === variant ? '0 4px 12px rgba(52, 88, 153, 0.3)' : 'none'
-                                }}
-                            >
-                                {variant === 'ALL' ? '不分方案' : `${variant}`}
-                            </button>
-                        ))}
-                    </div>
-                )}
-
-            {/* Duration Calculation & Warning */}
-            {(() => {
-                const totalMins = currentDay.attractions.reduce((sum, attr) => sum + (attr.durationMinutes || 0), 0);
-                const hrs = Math.floor(totalMins / 60);
-                const mins = totalMins % 60;
-                const isOverpacked = totalMins > 720; // 12 hours
-
-                if (totalMins === 0) return null;
-
-                return (
-                    <div style={{ padding: '0 16px', marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', backgroundColor: isOverpacked ? 'rgba(255, 165, 0, 0.1)' : 'var(--snow-white)', padding: '12px 16px', borderRadius: '12px', border: isOverpacked ? '1px solid orange' : '1px solid #eee' }}>
-                            <span style={{ fontSize: '0.85rem', color: isOverpacked ? 'orange' : 'var(--text-light)', fontWeight: isOverpacked ? 600 : 400 }}>
-                                今日累積停留時間
-                            </span>
-                            <span style={{ fontSize: '1rem', color: isOverpacked ? 'orange' : 'var(--text-main)', fontWeight: 600 }}>
-                                {hrs > 0 ? `${hrs} 小時 ` : ''}{mins > 0 ? `${mins} 分鐘` : ''}
-                            </span>
-                        </div>
-                        {isOverpacked && (
-                            <p style={{ color: 'orange', fontSize: '0.75rem', marginTop: '6px', textAlign: 'right' }}>
-                                ⚠️ 警告：超過 12 小時，行程可能過於緊湊！
-                            </p>
-                        )}
-                    </div>
-                );
-            })()}
-            <div className={`itinerary-list ${!editMode ? 'desktop-grid' : ''}`}>
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                >
-                    <SortableContext
-                        items={filteredAttractions.map(a => a.id)}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        {filteredAttractions.map(attraction => (
-                            <SortableAttractionItem
-                                key={attraction.id}
-                                attraction={attraction}
-                                editMode={editMode}
-                                onDelete={handleDeleteAttraction}
-                                onEdit={() => setEditingAttractionId(attraction.id)}
-                                onSaveEdit={handleSaveEditAttraction}
-                                onCancelEdit={() => setEditingAttractionId(null)}
-                                onAutoSave={(updated) => {
-                                    const updatedAttractions = currentDay.attractions.map(a =>
-                                        a.id === updated.id ? updated : a
-                                    );
-                                    saveDay({ ...currentDay, attractions: updatedAttractions });
-                                }}
-                                isEditing={editingAttractionId === attraction.id}
-                                defaultRegion={config.defaultRegion}
-                            />
-                        ))}
-                    </SortableContext>
-                </DndContext>
-            </div>
-
-            {editMode && !showAddForm && (
-                <button
-                    className="btn-add-attraction fade-in"
-                    onClick={() => setShowAddForm(true)}
-                >
-                    <Plus size={20} /> 在這天新增景點
-                </button>
-            )}
-
-            {showAddForm && (
-                <AddAttractionForm
-                    onSave={handleAddAttraction}
-                    onCancel={() => setShowAddForm(false)}
-                />
-            )}
-
-            {showImportModal && (
-                <SpreadsheetImportModal
-                    onImport={(tsvData) => {
-                        handleImportSpreadsheet(tsvData);
-                        setShowImportModal(false);
-                    }}
-                    onClose={() => setShowImportModal(false)}
-                />
-            )}
-
-            {!editMode && config.accommodations && config.accommodations.length > 0 && (
-                <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-                    {config.accommodations.filter(acc => {
-                        // If the accommodation has no date bounds, it applies universally
-                        if (!acc.checkIn || !acc.checkOut) return true;
-
-                        // Compare string dates lexicographically (YYYY-MM-DD works natively)
-                        return currentDay.date >= acc.checkIn && currentDay.date <= acc.checkOut;
-                    }).map((acc, index) => (
-                        <div key={acc.id}>
-                            {index === 0 && <h4 style={{ fontSize: '0.95rem', color: 'var(--text-light)', paddingLeft: '8px', marginBottom: '12px' }}>導航回住宿</h4>}
-                            <button
-                                onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(acc.address)}`, '_blank')}
-                                style={{
-                                    width: '100%',
-                                    backgroundColor: 'var(--snow-white)',
-                                    border: '1px solid var(--fuji-blue-light)',
-                                    padding: '16px',
-                                    borderRadius: '16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-                                    color: 'var(--fuji-blue)',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    boxShadow: '0 2px 8px rgba(52, 88, 153, 0.1)'
-                                }}
-                            >
-                                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><MapPin size={20} /> 返回 {acc.name}</span>
-                            </button>
-                        </div>
+            {uniqueVariants.length > 0 && (
+                <div className="variant-tabs" role="group" aria-label="方案">
+                    {['ALL', ...uniqueVariants].map((v) => (
+                        <button key={v} type="button" className={clsx('toggle-chip', activeVariant === v && 'active')} aria-pressed={activeVariant === v} onClick={() => setVariantFilter(v)}>
+                            {v === 'ALL' ? '全部方案' : v}
+                        </button>
                     ))}
                 </div>
             )}
 
-            {!editMode && (
-                <DailyAdvice
-                    tripId={tripId}
-                    advice={currentDay.advice}
-                    dayIndex={Math.max(0, days.findIndex(d => d.id === currentDay.id))}
-                />
+            {totalMins > 0 && (
+                <div className={clsx('time-summary', over && 'over')}>
+                    <span>今日預計停留</span>
+                    <strong>
+                        {Math.floor(totalMins / 60) > 0 ? `${Math.floor(totalMins / 60)} 小時 ` : ''}
+                        {totalMins % 60 > 0 ? `${totalMins % 60} 分鐘` : ''}
+                        {over ? '（超過 12 小時，行程可能太緊）' : ''}
+                    </strong>
+                </div>
             )}
+
+            {currentDay.attractions.length === 0 && !showAddForm && (
+                <div className="empty-state">
+                    <MapPin size={32} aria-hidden="true" />
+                    <p>這一天還沒有安排景點。</p>
+                    <p className="small">按右上角「編輯行程」就能新增，或用「匯入表格」一次貼上。</p>
+                </div>
+            )}
+
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={visible.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+                    <div className={clsx('attraction-list', !editMode && 'grid')}>
+                        {visible.map((a) => (
+                            <SortableAttractionItem
+                                key={a.id}
+                                attraction={a}
+                                editMode={editMode}
+                                isEditing={editingId === a.id}
+                                defaultRegion={config.defaultRegion}
+                                onDelete={(id) => void handleDelete(id)}
+                                onEdit={() => setEditingId(a.id)}
+                                onSaveEdit={(u) => void handleSaveEdit(u)}
+                                onCancelEdit={() => setEditingId(null)}
+                            />
+                        ))}
+                    </div>
+                </SortableContext>
+            </DndContext>
+
+            {editMode && !showAddForm && (
+                <button type="button" className="btn-dashed" style={{ marginTop: 14 }} onClick={() => setShowAddForm(true)}>
+                    <Plus size={20} aria-hidden="true" /> 在這天新增景點
+                </button>
+            )}
+            {showAddForm && (
+                <div className="card" style={{ marginTop: 14 }}>
+                    <AddAttractionForm onSave={(a) => void handleAdd(a)} onCancel={() => setShowAddForm(false)} />
+                </div>
+            )}
+
+            {showImportModal && <SpreadsheetImportModal onImport={handleImport} onClose={() => setShowImportModal(false)} />}
+
+            {!editMode && hotels.length > 0 && (
+                <div style={{ marginTop: 24 }}>
+                    <h3 className="section-title" style={{ fontSize: '0.95rem', color: 'var(--muted)' }}>
+                        導航回住宿
+                    </h3>
+                    <div className="link-list">
+                        {hotels.map((acc) => (
+                            <button key={acc.id} type="button" className="link-btn" onClick={() => openExternal(mapsSearchUrl(acc.address || acc.name))}>
+                                <MapPin size={20} aria-hidden="true" /> 返回 {acc.name}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {!editMode && <DailyAdvice tripId={tripId} advice={currentDay.advice} dayIndex={currentIndex} />}
         </div>
     );
 }

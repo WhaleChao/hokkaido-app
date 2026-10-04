@@ -2,217 +2,149 @@ import { useState, useEffect } from 'react';
 import { Plus, BaggageClaim, AlertTriangle, X, CheckCircle2, Circle, Trash2 } from 'lucide-react';
 import { useChecklistStore, type PackingCategory, type PackingItem } from '../../hooks/useChecklistStore';
 import { useConfigStore } from '../../hooks/useConfigStore';
-import { configStore } from '../../db';
+import { validateRules, matchCustomsRules, type CustomsRules, type CustomsRule } from '../../utils/customs';
+import { visibleLocation } from '../../data/config';
+import { useUi } from '../ui/uiContext';
 
-interface ProhibitedRule {
-    keywords: string[];
-    message: string;
-}
-
-interface RulesData {
-    rules: ProhibitedRule[];
-    last_updated: string;
-}
+const CATEGORIES: PackingCategory[] = ['重要文件', '電子產品', '衣物', '盥洗用品', '其他'];
 
 export function PackingChecklist({ tripId }: { tripId: string }) {
-    const { items, loading, addItem, togglePacked, removeItem } = useChecklistStore(tripId);
+    const { items, loading, error, addItem, togglePacked, removeItem } = useChecklistStore(tripId);
     const { config } = useConfigStore(tripId);
+    const ui = useUi();
 
-    // Form State
-    const [newItemText, setNewItemText] = useState('');
-    const [newItemCat, setNewItemCat] = useState<PackingCategory>('其他');
-    const categories: PackingCategory[] = ['重要文件', '電子產品', '衣物', '盥洗用品', '其他'];
+    const [text, setText] = useState('');
+    const [cat, setCat] = useState<PackingCategory>('其他');
 
-    // Phase 17: Prohibited Alert State
-    const [alertMessage, setAlertMessage] = useState<string | null>(null);
-    const [alertDismissed, setAlertDismissed] = useState(false);
+    // 海關提醒：規則檔跟著 App 一起打包（離線也看得到），不再從網路上即時抓。
+    const [rules, setRules] = useState<{ data: CustomsRules | null; failed: boolean } | null>(null);
+    const [dismissed, setDismissed] = useState(false);
 
     useEffect(() => {
-        if (!config.location || alertDismissed) return;
-
-        const checkProhibitedItems = async () => {
+        let cancelled = false;
+        (async () => {
             try {
-                // 1. Try hitting the GitHub Raw URL directly for the absolute latest (auto-updating)
-                // Fallback to local public/prohibited_rules.json if offline or developing
-                const cacheKey = 'prohibited_rules_cache';
-                let rulesData: RulesData | null = null;
-
-                try {
-                    const response = await fetch('https://raw.githubusercontent.com/whalechao/hokkaido-app/main/public/prohibited_rules.json');
-                    if (response.ok) {
-                        rulesData = await response.json();
-                        await configStore.setItem(cacheKey, { data: rulesData, timestamp: Date.now() });
-                    }
-                } catch (e) {
-                    console.warn('Could not fetch remote rules, falling back to cache or local.');
-                }
-
-                if (!rulesData) {
-                    const cached = await configStore.getItem<{ data: RulesData, timestamp: number }>(cacheKey);
-                    // 7-day TTL check
-                    if (cached && (Date.now() - cached.timestamp < 7 * 24 * 60 * 60 * 1000)) {
-                        rulesData = cached.data;
-                    } else {
-                        // Strict local fallback using Vite's BASE_URL
-                        const res = await fetch(`${import.meta.env.BASE_URL}prohibited_rules.json`);
-                        if (res.ok) rulesData = await res.json();
-                    }
-                }
-
-                if (rulesData && rulesData.rules) {
-                    const locationLower = config.location.toLowerCase();
-                    const matchedRule = rulesData.rules.find(rule =>
-                        rule.keywords.some(kw => locationLower.includes(kw.toLowerCase()))
-                    );
-
-                    if (matchedRule) {
-                        setAlertMessage(matchedRule.message);
-                    }
-                }
-
-            } catch (err) {
-                console.error('Failed to load prohibited rules', err);
+                const res = await fetch(`${import.meta.env.BASE_URL}prohibited_rules.json`);
+                if (!res.ok) throw new Error(String(res.status));
+                const data = validateRules(await res.json());
+                if (!cancelled) setRules({ data, failed: data === null });
+            } catch (e) {
+                console.error('Failed to load customs rules', e);
+                if (!cancelled) setRules({ data: null, failed: true });
             }
+        })();
+        return () => {
+            cancelled = true;
         };
+    }, []);
 
-        checkProhibitedItems();
-    }, [config.location, alertDismissed]);
+    if (loading) return <div className="loading" role="status">讀取清單中…</div>;
+    if (error) return <div className="notice notice-error" role="alert">{error}</div>;
 
-    if (loading) return <div className="tab-placeholder fade-in">讀取清單中...</div>;
+    const location = visibleLocation(config.location);
+    const matched: CustomsRule[] = rules?.data && location ? matchCustomsRules(location, rules.data.rules) : [];
 
     const total = items.length;
-    const packedCount = items.filter(i => i.isPacked).length;
-    const progressPerc = total === 0 ? 0 : Math.round((packedCount / total) * 100);
+    const packed = items.filter((i) => i.isPacked).length;
+    const pct = total === 0 ? 0 : Math.round((packed / total) * 100);
 
     const handleAdd = async () => {
-        if (!newItemText.trim()) return;
-        await addItem({
-            text: newItemText.trim(),
-            category: newItemCat
-        });
-        setNewItemText('');
+        if (!text.trim()) return;
+        const ok = await ui.run(() => addItem({ text: text.trim(), category: cat }), '新增失敗');
+        if (ok) setText('');
     };
 
-    // Group items by category
-    const groupedItems = categories.reduce((acc, cat) => {
-        acc[cat] = items.filter(i => i.category === cat);
-        return acc;
-    }, {} as Record<PackingCategory, PackingItem[]>);
+    const grouped = CATEGORIES.map((c) => [c, items.filter((i) => i.category === c)] as [PackingCategory, PackingItem[]]).filter(([, l]) => l.length > 0);
 
     return (
-        <div className="checklist-view fade-in">
-            {/* Phase 17: Dynamic Prohibited Item Warning */}
-            {alertMessage && !alertDismissed && (
-                <div style={{ backgroundColor: '#fff3cd', color: '#856404', padding: '16px', borderRadius: '16px', marginBottom: '20px', border: '1px solid #ffeeba', position: 'relative', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-                    <AlertTriangle style={{ flexShrink: 0, marginTop: '2px' }} size={20} color="#856404" />
+        <div className="tab-panel">
+            {matched.length > 0 && !dismissed && (
+                <div className="notice notice-warn" role="note" style={{ marginBottom: 16, position: 'relative', paddingRight: 52 }}>
+                    <AlertTriangle size={20} aria-hidden="true" />
                     <div>
-                        <strong style={{ display: 'block', marginBottom: '4px', fontSize: '1rem' }}>目的地海關規定警示</strong>
-                        <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.4' }}>{alertMessage}</p>
+                        <strong>目的地海關提醒</strong>
+                        {matched.map((r, i) => (
+                            <p key={i}>{r.message}</p>
+                        ))}
+                        <p className="small" style={{ marginTop: 8 }}>
+                            僅供提醒，不具法律效力，規定可能已變動，出發前請以官方公告為準
+                            {rules?.data?.last_reviewed ? `（內容整理於 ${rules.data.last_reviewed}）` : ''}。
+                            {rules?.data?.sources?.map((s) => (
+                                <span key={s.url}>
+                                    {' '}
+                                    <a href={s.url} target="_blank" rel="noopener noreferrer">
+                                        {s.name}
+                                    </a>
+                                </span>
+                            ))}
+                        </p>
                     </div>
-                    <button
-                        onClick={() => setAlertDismissed(true)}
-                        style={{ position: 'absolute', top: '12px', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: '#856404', padding: '4px' }}
-                        title="我知道了"
-                    >
-                        <X size={16} />
+                    <button type="button" className="btn-icon" style={{ position: 'absolute', top: 2, right: 2 }} onClick={() => setDismissed(true)} aria-label="我知道了，先關閉這則提醒">
+                        <X size={18} aria-hidden="true" />
                     </button>
                 </div>
             )}
-
-            {/* Progress Header */}
-            <div style={{ backgroundColor: 'white', padding: '24px 20px', borderRadius: '16px', marginBottom: '20px', border: '1px solid #eee' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--fuji-blue)' }}>
-                        <BaggageClaim size={24} /> 行李準備進度
-                    </h3>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 600, color: 'var(--text-main)' }}>
-                        {packedCount} / {total}
-                    </span>
+            {rules?.failed && location && (
+                <div className="notice" role="status" style={{ marginBottom: 16 }}>
+                    <span>海關提醒資料暫時無法載入，出發前請自行查閱目的地海關公告。</span>
                 </div>
-                {/* Progress Bar Track */}
-                <div style={{ width: '100%', height: '12px', backgroundColor: 'var(--snow-white)', borderRadius: '6px', overflow: 'hidden' }}>
-                    {/* Fill */}
-                    <div style={{ width: `${progressPerc}%`, height: '100%', backgroundColor: 'var(--accent-primary)', transition: 'width 0.3s ease-out' }}></div>
-                </div>
-            </div>
+            )}
 
-            {/* Quick Add */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', flexWrap: 'wrap' }}>
-                <select
-                    value={newItemCat}
-                    onChange={e => setNewItemCat(e.target.value as PackingCategory)}
-                    style={{ flex: '1 1 100px', padding: '12px', borderRadius: '12px', border: '1px solid #ddd', background: 'white' }}
-                >
-                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+            <section className="progress-card" aria-label="行李準備進度">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h2 className="section-title" style={{ margin: 0 }}>
+                        <BaggageClaim size={22} aria-hidden="true" /> 行李準備進度
+                    </h2>
+                    <strong style={{ fontFamily: 'var(--serif)', fontSize: '1.2rem' }}>
+                        {packed} / {total}
+                    </strong>
+                </div>
+                <div className="progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="已打包比例">
+                    <div className="progress-fill" style={{ width: `${pct}%` }} />
+                </div>
+            </section>
+
+            <form
+                className="add-row"
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    void handleAdd();
+                }}
+            >
+                <select className="select" value={cat} onChange={(e) => setCat(e.target.value as PackingCategory)} aria-label="分類">
+                    {CATEGORIES.map((c) => (
+                        <option key={c}>{c}</option>
+                    ))}
                 </select>
-                <input
-                    type="text"
-                    value={newItemText}
-                    onChange={e => setNewItemText(e.target.value)}
-                    placeholder="輸入新物品..."
-                    style={{ flex: '2 1 140px', padding: '12px', borderRadius: '12px', border: '1px solid #ddd' }}
-                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                />
-                <button
-                    className="btn-add-checklist-item"
-                    onClick={handleAdd}
-                    style={{ flex: '0 0 auto', minWidth: '48px', backgroundColor: 'var(--fuji-blue)', color: 'white', border: 'none', borderRadius: '12px', padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                    <Plus size={20} />
+                <input className="input" value={text} onChange={(e) => setText(e.target.value)} placeholder="輸入要帶的物品" aria-label="物品名稱" />
+                <button type="submit" className="btn btn-primary" aria-label="新增物品">
+                    <Plus size={20} aria-hidden="true" /> 新增
                 </button>
-            </div>
+            </form>
 
-            {/* Render Categories */}
-            <div className="desktop-grid" style={{ paddingBottom: '80px' }}>
-                {categories.map(cat => {
-                    const catItems = groupedItems[cat];
-                    if (catItems.length === 0) return null;
+            {grouped.length === 0 && <div className="empty-state">清單是空的，在上面新增要帶的東西吧。</div>}
 
-                    return (
-                        <div key={cat} style={{ marginBottom: '24px' }}>
-                            <h4 style={{ fontSize: '1rem', color: 'var(--text-light)', marginBottom: '12px', paddingLeft: '8px' }}>{cat}</h4>
-                            <div style={{ backgroundColor: 'white', borderRadius: '16px', border: '1px solid #eee', overflow: 'hidden' }}>
-                                {catItems.map((item, idx) => (
-                                    <div
-                                        key={item.id}
-                                        style={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            padding: '16px',
-                                            borderBottom: idx !== catItems.length - 1 ? '1px solid #f5f5f5' : 'none',
-                                            backgroundColor: item.isPacked ? '#fafafa' : 'white',
-                                            transition: 'background-color 0.2s'
-                                        }}
-                                    >
-                                        <button
-                                            onClick={() => togglePacked(item.id, item.isPacked)}
-                                            style={{ background: 'none', border: 'none', padding: '0', marginRight: '16px', color: item.isPacked ? 'var(--accent-primary)' : '#ddd', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                                        >
-                                            {item.isPacked ? <CheckCircle2 size={24} /> : <Circle size={24} />}
-                                        </button>
-
-                                        <span style={{
-                                            flex: 1,
-                                            fontSize: '1.05rem',
-                                            color: item.isPacked ? '#999' : 'var(--text-main)',
-                                            textDecoration: item.isPacked ? 'line-through' : 'none',
-                                            transition: 'all 0.2s'
-                                        }}>
-                                            {item.text}
-                                        </span>
-
-                                        <button
-                                            onClick={() => removeItem(item.id)}
-                                            style={{ background: 'none', border: 'none', color: '#ff6b6b', opacity: 0.6, cursor: 'pointer', padding: '4px' }}
-                                        >
-                                            <Trash2 size={18} />
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })}
+            <div className="stack-lg">
+                {grouped.map(([c, list]) => (
+                    <section key={c}>
+                        <h3 className="section-title" style={{ fontSize: '0.95rem', color: 'var(--muted)', margin: '0 0 8px 4px' }}>
+                            {c}
+                        </h3>
+                        <ul className="check-group">
+                            {list.map((item) => (
+                                <li key={item.id} className="check-row">
+                                    <button type="button" className="check-toggle" role="checkbox" aria-checked={item.isPacked} onClick={() => void ui.run(() => togglePacked(item.id), '更新失敗')}>
+                                        <span className="box">{item.isPacked ? <CheckCircle2 size={24} aria-hidden="true" /> : <Circle size={24} aria-hidden="true" />}</span>
+                                        <span className="text">{item.text}</span>
+                                    </button>
+                                    <button type="button" className="btn-icon danger" onClick={() => void ui.run(() => removeItem(item.id), '刪除失敗')} aria-label={`刪除：${item.text}`}>
+                                        <Trash2 size={18} aria-hidden="true" />
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    </section>
+                ))}
             </div>
         </div>
     );

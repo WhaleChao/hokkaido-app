@@ -1,4 +1,25 @@
-import { type DayItinerary, type Attraction } from '../data/itinerary';
+import { type DayItinerary, type Attraction, type SubOption, type Category } from '../data/itinerary';
+import { dayIdFor } from './tripData';
+
+const CATEGORIES: Category[] = ['食物', '活動', '購物', '景點', '酒店', '交通'];
+
+function newId(): string {
+    return `attr-${crypto.randomUUID()}`;
+}
+
+export interface ParseResult {
+    ok: boolean;
+    /** 解析後的每一天（只有「表格裡有出現的天」被取代，其餘原封不動） */
+    days: DayItinerary[];
+    /** 表格裡出現的天數 */
+    touchedDays: number;
+    touchedIndexes: number[];
+    parsedItems: number;
+    /** 表格天數比行程多時，自動補上的天數 */
+    addedDays: number;
+    warnings: string[];
+    error?: string;
+}
 
 // Detect and split numbered items like "1. xxx 2. yyy" or "1.xxx\n2.yyy"
 // Works regardless of whether items are separated by newlines or spaces
@@ -49,7 +70,7 @@ function splitNumberedOptions(
     }
 
     const variantLabels = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const subOptions: import('../data/itinerary').SubOption[] = [];
+    const subOptions: SubOption[] = [];
 
     for (let idx = 0; idx < items.length; idx++) {
         const { num, text: itemName } = items[idx];
@@ -69,7 +90,7 @@ function splitNumberedOptions(
     const sharedDesc = fullText.substring(0, positions[0].matchPos).trim();
 
     return {
-        id: `attr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        id: newId(),
         name: displayName,
         category,
         description: sharedDesc,
@@ -156,33 +177,70 @@ function generateMapQuery(name: string, desc: string): string {
     return query.trim();
 }
 
-export function parseSpreadsheetData(tsvData: string, existingDays: DayItinerary[]): DayItinerary[] {
-    if (!tsvData || !tsvData.trim()) return existingDays;
+function emptyResult(days: DayItinerary[], error: string): ParseResult {
+    return { ok: false, days, touchedDays: 0, touchedIndexes: [], parsedItems: 0, addedDays: 0, warnings: [], error };
+}
+
+interface Block {
+    timeCol: number;
+    nameCol: number;
+    descCol: number;
+    noteCol: number;
+}
+
+function newDay(index: number, label: string): DayItinerary {
+    return {
+        id: dayIdFor(index),
+        dayLabel: `Day ${index + 1}`,
+        date: label || `Day ${index + 1}`,
+        locationLabel: '',
+        attractions: [],
+        advice: { clothing: '', snowCondition: '' },
+    };
+}
+
+/**
+ * 解析從試算表貼上的內容。
+ * - 一個景點都解析不出來 → ok=false，呼叫端不可改動任何資料。
+ * - 只取代「表格裡有景點的天」，其他天保持原樣。
+ */
+export function parseSpreadsheetData(tsvData: string, existingDays: DayItinerary[]): ParseResult {
+    if (!tsvData || !tsvData.trim()) return emptyResult(existingDays, '請先貼上行程表格內容');
 
     const rows = parseTSV(tsvData);
-    // Clear existing attractions — fresh import replaces old data
-    const newDays = [...existingDays.map(d => ({ ...d, attractions: [] as Attraction[] }))];
+    const days: DayItinerary[] = existingDays.map((d) => ({ ...d, attractions: [...d.attractions] }));
+    const warnings: string[] = [];
+    const touched = new Set<number>();
+    const fresh = new Map<number, Attraction[]>();
+    let parsedItems = 0;
+    let addedDays = 0;
 
-    // Detect horizontal layout (Multiple columns of "活動地點", "地點", "Name")
-    let dayBlocks: { timeCol: number, nameCol: number, descCol: number, noteCol: number }[] = [];
+    const push = (dayIndex: number, a: Attraction) => {
+        const list = fresh.get(dayIndex) ?? [];
+        list.push(a);
+        fresh.set(dayIndex, list);
+        touched.add(dayIndex);
+        parsedItems++;
+    };
+
+    // 橫向版型：多組「時間 / 活動地點 / 簡介 / 備註」並排，每組是一天
+    const dayBlocks: Block[] = [];
     let headerRowIndex = -1;
-
     for (let r = 0; r < Math.min(rows.length, 10); r++) {
         const cols = rows[r];
         for (let c = 0; c < cols.length; c++) {
             const val = cols[c].trim();
+            // 直式表頭「天數 | 景點名稱 | 分類 | 備註」也有「景點名稱」，不能被當成橫式
+            if (val === '景點名稱' && c === 1 && /^(天數|天|Day|日期)$/i.test(cols[0].trim())) continue;
             if (val === '活動地點' || val === '地點' || val === '行程' || val === '景點名稱') {
-                let timeCol = c > 0 && cols[c - 1].includes('時間') ? c - 1 : -1;
-
+                const timeCol = c > 0 && cols[c - 1].includes('時間') ? c - 1 : -1;
                 let descCol = -1;
                 let noteCol = -1;
                 for (let scan = c + 1; scan < cols.length && scan <= c + 5; scan++) {
                     const scanVal = cols[scan].trim();
                     if (scanVal.includes('簡介') || scanVal.includes('內容')) descCol = scan;
-                    if (scanVal.includes('交通') && descCol === -1) descCol = scan; // only fallback if no 簡介 found
-                    if (scanVal.includes('備註') || scanVal.includes('出口')) {
-                        noteCol = scan; // keep overriding to get the furthest column like '備註'
-                    }
+                    if (scanVal.includes('交通') && descCol === -1) descCol = scan;
+                    if (scanVal.includes('備註') || scanVal.includes('出口')) noteCol = scan;
                 }
                 dayBlocks.push({ timeCol, nameCol: c, descCol, noteCol });
             }
@@ -194,128 +252,116 @@ export function parseSpreadsheetData(tsvData: string, existingDays: DayItinerary
     }
 
     if (dayBlocks.length > 0) {
-        // Auto-create missing days from spreadsheet date headers (first row)
-        const dateRow = rows.length > 0 ? rows[0] : [];
-        while (newDays.length < dayBlocks.length) {
-            const blockIdx = newDays.length;
-            const b = dayBlocks[blockIdx];
-            // Try to extract date label from first row at the block's column range
+        const dateRow = rows[0] ?? [];
+        while (days.length < dayBlocks.length) {
+            const b = dayBlocks[days.length];
             let dateLabel = '';
             for (let c = Math.max(0, b.timeCol); c <= b.nameCol; c++) {
-                if (c >= 0 && c < dateRow.length && dateRow[c].trim()) {
+                if (c < dateRow.length && dateRow[c].trim()) {
                     dateLabel = dateRow[c].trim();
                     break;
                 }
             }
-            newDays.push({
-                id: `day${newDays.length + 1}`,
-                dayLabel: `Day ${newDays.length + 1}`,
-                date: dateLabel || `Day ${newDays.length + 1}`,
-                locationLabel: '',
-                attractions: [],
-                advice: { clothing: '', snowCondition: '' }
-            });
+            days.push(newDay(days.length, dateLabel));
+            addedDays++;
         }
 
-        // Horizontal parsing mode
         for (let i = 0; i < dayBlocks.length; i++) {
             const b = dayBlocks[i];
             let currentVariant = '';
 
             for (let r = headerRowIndex + 1; r < rows.length; r++) {
                 const cols = rows[r];
-                let timeStr = b.timeCol !== -1 && b.timeCol < cols.length ? cols[b.timeCol].trim() : '';
-                let nameStr = b.nameCol < cols.length ? cols[b.nameCol].trim() : '';
-                let descStr = b.descCol !== -1 && b.descCol < cols.length ? cols[b.descCol].trim() : '';
-                let noteStr = b.noteCol !== -1 && b.noteCol < cols.length ? cols[b.noteCol].trim() : '';
+                const timeStr = b.timeCol !== -1 && b.timeCol < cols.length ? cols[b.timeCol].trim() : '';
+                const nameStr = b.nameCol < cols.length ? cols[b.nameCol].trim() : '';
+                const descStr = b.descCol !== -1 && b.descCol < cols.length ? cols[b.descCol].trim() : '';
+                const noteStr = b.noteCol !== -1 && b.noteCol < cols.length ? cols[b.noteCol].trim() : '';
 
-                // Variant detection (e.g. "男生行程" in time or location column without a real time)
+                // 方案分組（例如時間欄寫「男生行程」而地點欄空白）
                 if (timeStr && !nameStr && !timeStr.includes(':') && !/\d/.test(timeStr)) {
-                    if (timeStr !== '時間' && timeStr !== 'Date' && timeStr !== 'Day') {
-                        currentVariant = timeStr;
-                    }
+                    if (timeStr !== '時間' && timeStr !== 'Date' && timeStr !== 'Day') currentVariant = timeStr;
                     continue;
                 }
-
                 if (!nameStr) continue;
                 if (nameStr === '活動地點' || nameStr === '地點' || nameStr === '時間') continue;
 
                 let mergedDesc = descStr;
-                // Add all columns between name and note as description if we missed them
                 for (let scan = b.nameCol + 1; scan <= Math.max(b.descCol, b.noteCol); scan++) {
                     if (scan !== b.descCol && scan !== b.noteCol && scan < cols.length) {
                         const val = cols[scan].trim();
                         if (val && !mergedDesc.includes(val)) mergedDesc += (mergedDesc ? ' | ' : '') + val;
                     }
                 }
-
                 if (noteStr) mergedDesc += (mergedDesc ? '\n📝 ' : '📝 ') + noteStr;
+                mergedDesc = mergedDesc
+                    .replace(/(?:^|\n)\s*\/\s*(?:$|\n)/g, '\n')
+                    .replace(/^\s*\/\s*/gm, '')
+                    .replace(/\s*\/\s*$/gm, '')
+                    .trim();
 
-                // Clean orphan slashes (/ with no text on one side)
-                mergedDesc = mergedDesc.replace(/(?:^|\n)\s*\/\s*(?:$|\n)/g, '\n').replace(/^\s*\/\s*/gm, '').replace(/\s*\/\s*$/gm, '').trim();
-
-                const mapQueryStr = generateMapQuery(nameStr, mergedDesc);
-                let finalName = timeStr ? `[${timeStr}] ${nameStr}` : nameStr;
-
-                // Try splitting numbered options (e.g. "1. 咖浬\n2. 松屋")
-                // Use descStr for numbered detection, but also check mergedDesc in case columns shifted
                 const textForSplit = descStr.includes('1.') || descStr.includes('1、') ? descStr : mergedDesc;
-                const splitResult = splitNumberedOptions(
-                    nameStr, textForSplit, noteStr,
-                    guessCategory(nameStr, mergedDesc),
-                    timeStr,
-                    currentVariant || undefined
-                );
-
-                if (splitResult) {
-                    // Numbered options detected — add as a single mapped attraction with subOptions
-                    newDays[i].attractions.push(splitResult);
+                const split = splitNumberedOptions(nameStr, textForSplit, noteStr, guessCategory(nameStr, mergedDesc), timeStr, currentVariant || undefined);
+                if (split) {
+                    push(i, split);
                 } else {
-                    // Single attraction — normal behavior
-                    const newAttraction: Attraction = {
-                        id: `attr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-                        name: finalName,
+                    push(i, {
+                        id: newId(),
+                        name: timeStr ? `[${timeStr}] ${nameStr}` : nameStr,
                         category: guessCategory(nameStr, mergedDesc),
                         description: mergedDesc,
                         tags: [],
-                        mapQuery: mapQueryStr.trim(),
-                        planVariant: currentVariant || undefined
-                    };
-                    newDays[i].attractions.push(newAttraction);
+                        mapQuery: generateMapQuery(nameStr, mergedDesc).trim(),
+                        planVariant: currentVariant || undefined,
+                    });
                 }
             }
         }
-        return newDays;
+    } else {
+        // 直式版型：天數 | 景點名稱 | 分類 | 備註
+        let skipped = 0;
+        rows.forEach((columns) => {
+            if (columns.length < 2) return;
+            const dayStr = columns[0].trim();
+            const name = columns[1].trim();
+            const catCol = columns.length > 2 ? columns[2].trim() : '';
+            const memo = columns.length > 3 ? columns[3].trim() : '';
+            if (!name || ['名稱', 'Name', '景點', '景點名稱'].includes(name)) return;
+            const dayMatch = dayStr.match(/\d+/);
+            if (!dayMatch) {
+                skipped++;
+                return;
+            }
+            const dayIndex = parseInt(dayMatch[0], 10) - 1;
+            if (dayIndex < 0 || dayIndex >= days.length) {
+                skipped++;
+                return;
+            }
+            push(dayIndex, {
+                id: newId(),
+                name,
+                category: CATEGORIES.includes(catCol as Category) ? (catCol as Category) : guessCategory(name, memo),
+                description: memo,
+                tags: [],
+                mapQuery: generateMapQuery(name, memo),
+            });
+        });
+        if (skipped > 0) warnings.push(`有 ${skipped} 列因為天數看不懂或超出行程天數，已略過`);
     }
 
-    // Fallback: Vertical parsing mode (Simple 4-column)
-    rows.forEach(columns => {
-        if (columns.length < 2) return;
+    if (parsedItems === 0) {
+        return emptyResult(
+            existingDays,
+            '沒有解析出任何景點，所以沒有改動你的行程。請確認表頭有「活動地點」（橫式），或每列為「天數、景點名稱、分類、備註」（直式）。',
+        );
+    }
 
-        let dayStr = columns[0].trim();
-        let name = columns[1].trim();
-        let memo = columns.length > 3 ? columns[3].trim() : '';
+    for (const idx of touched) {
+        days[idx] = { ...days[idx], attractions: fresh.get(idx) ?? [] };
+    }
+    if (dayBlocks.length > 0) {
+        const empty = dayBlocks.map((_, i) => i).filter((i) => !touched.has(i));
+        if (empty.length > 0) warnings.push(`第 ${empty.map((i) => i + 1).join('、')} 天在表格裡沒有景點，這幾天維持原樣`);
+    }
 
-        const dayMatch = dayStr.match(/\d+/);
-        if (!dayMatch) return;
-
-        const dayNum = parseInt(dayMatch[0], 10);
-        const dayIndex = dayNum - 1;
-
-        if (dayIndex < 0 || dayIndex >= newDays.length) return;
-        if (name === '名稱' || name === 'Name' || name === '景點' || name === '景點名稱') return;
-
-        const newAttraction: Attraction = {
-            id: `attr-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-            name: name,
-            category: guessCategory(name, memo),
-            description: memo,
-            tags: [],
-            mapQuery: generateMapQuery(name, memo)
-        };
-
-        newDays[dayIndex].attractions.push(newAttraction);
-    });
-
-    return newDays;
+    return { ok: true, days, touchedDays: touched.size, touchedIndexes: [...touched].sort((a, b) => a - b), parsedItems, addedDays, warnings };
 }

@@ -1,4 +1,6 @@
 import { useConfigStore } from '../hooks/useConfigStore';
+import { visibleLocation } from '../data/config';
+import { formatMD } from '../utils/date';
 import { ChevronLeft } from 'lucide-react';
 
 interface HeaderProps {
@@ -8,27 +10,17 @@ interface HeaderProps {
 
 export function Header({ tripId, onBack }: HeaderProps) {
     const { config } = useConfigStore(tripId);
-
-    // Format dates to simple MM/DD format
-    const formatStr = (dStr: string) => {
-        if (!dStr) return '';
-        const d = new Date(dStr);
-        return `${d.getMonth() + 1}/${d.getDate()}`;
-    };
+    const loc = visibleLocation(config.location);
+    const range = config.startDate && config.endDate ? `${formatMD(config.startDate)} – ${formatMD(config.endDate)}` : '';
 
     return (
-        <header className="app-header" style={{ position: 'relative' }}>
-            <button
-                onClick={onBack}
-                style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'white', padding: '8px', cursor: 'pointer', zIndex: 10 }}
-            >
-                <ChevronLeft size={28} />
+        <header className="app-header">
+            <button type="button" className="btn-icon" onClick={onBack} aria-label="回到行程庫">
+                <ChevronLeft size={26} aria-hidden="true" />
             </button>
-            <div className="header-content" style={{ paddingLeft: '40px' }}>
-                <h1 className="header-title" style={{ fontSize: '1.2rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{config.tripName || '未命名旅程'}</h1>
-                <p className="header-date" style={{ fontSize: '0.8rem' }}>
-                    {config.location} ✈️ {formatStr(config.startDate)} - {formatStr(config.endDate)}
-                </p>
+            <div className="header-text">
+                <h1 className="header-title">{config.tripName || '未命名旅程'}</h1>
+                <p className="header-sub">{[loc, range].filter(Boolean).join('・') || '尚未設定地點與日期'}</p>
             </div>
         </header>
     );
