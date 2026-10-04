@@ -73,7 +73,7 @@
       "always": true,
       "keywords": [],
       "items": [
-        "一、毒品危害防制條例第2條1所列毒品，及非醫師處方或非醫療性之管制藥品 （如海洛因、嗎啡、鴉片、古柯鹼、罌粟或罌粟籽、古柯、安非他命、吩坦尼、大麻、大麻籽、四氫大麻酚(THCs)含量大於10ppm之大麻或大麻籽產製品等）。",
+        "一、毒品危害防制條例第2條1所列毒品，及非醫師處方或非醫療性之管制藥品 （如海洛因、嗎啡、鴉片、古柯鹼、罌粟或罌粟籽、古柯、安非他命、吩坦尼、大麻、大麻籽、四氫大麻酚(THCs)含量大於10ppm之大麻或大麻籽產製品等）。（測試：模擬舊版措辭）",
         "二、槍砲彈藥刀械管制條例第4條2所列槍砲（如獵槍、空氣槍、魚槍、瓦斯槍等）、彈藥（如子彈、爆裂物等）及刀械(如已開鋒之武士刀)。但持憑主管機關許可文件並於入境時向海關申報者不在此限。",
         "三、侵害專利權、商標權及著作權之物品。惟屬入境人員行李之一部分而輸入著作重製物(如國外合法銷售之錄音帶、錄影帶、唱片、影音光碟及電腦軟體、書刊文件...等)者，每次每一著作以一份為限。",
         "四、偽造或變造之貨幣、有價證券及印製偽幣印模。",
@@ -275,7 +275,7 @@
       "items": [
         "The import of chewing gum classified under HS code 1704 1000 into Singapore is absolutely prohibited under the Regulation of Imports and Exports(Chewing Gum) Regulations."
       ],
-      "reviewed_hash": "964d233485e80e6db05612213e09d9354e025591bbfb7e51aedef610f0888b2e"
+      "reviewed_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
     }
   ]
 }
