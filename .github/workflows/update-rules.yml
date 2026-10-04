@@ -1,0 +1,99 @@
+name: 核對官方海關與檢疫規則
+
+on:
+  schedule:
+    - cron: '17 3 * * *' # 每天 03:17 UTC（台灣 11:17）
+  workflow_dispatch: # 也可以手動執行
+
+permissions:
+  contents: write # 提交規則檔、更新 gh-pages
+  issues: write # 官方來源有變動待確認時開 Issue
+
+concurrency:
+  group: update-rules
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # 抓官方頁面 → 解析 → 與現有規則比對。只用公開網頁與 GITHUB_TOKEN（開 Issue 用），沒有任何私人金鑰。
+      - name: 核對官方來源
+        id: update
+        run: node scripts/rules/update.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      # 結構驗證與測試通過才提交；驗證不過就整個流程失敗，不會提交任何東西
+      - name: 驗證規則檔與解析器
+        run: |
+          node scripts/validate-rules.mjs
+          npx vitest run scripts src/utils/customs.test.ts
+
+      - name: 提交變動
+        id: commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/prohibited_rules.json public/rules-status.json
+          if git diff --cached --quiet; then
+            echo "committed=false" >> "$GITHUB_OUTPUT"
+            echo "沒有任何變動"
+          elif [ "${{ steps.update.outputs.content_changed }}" = "true" ]; then
+            git commit -m "chore(rules): 官方來源內容有更新，已自動更新規則並重新部署"
+            git push origin HEAD:main
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          else
+            git commit -m "chore(rules): 已於 $(date -u +%Y-%m-%d) 核對官方來源，內容沒有變動 [skip ci]"
+            git push origin HEAD:main
+            echo "committed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # 規則內容有變：完整建置並發布（Service Worker 會因此通知使用者「有新版本」）
+      - name: 重新部署（規則內容有變）
+        if: steps.update.outputs.content_changed == 'true'
+        run: |
+          npm run build
+          cd dist
+          touch .nojekyll
+          git init -q
+          git checkout -q -B main
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "deploy rules $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" main:gh-pages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+      # 只有核對時間／狀態變了：只更新線上的 rules-status.json，不重新建置、不觸發 App 更新提示
+      - name: 更新線上核對狀態（內容沒變）
+        if: steps.commit.outputs.committed == 'true' && steps.update.outputs.content_changed != 'true'
+        run: |
+          git clone -q --depth 1 --branch gh-pages "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$RUNNER_TEMP/pages"
+          cp public/rules-status.json "$RUNNER_TEMP/pages/rules-status.json"
+          cd "$RUNNER_TEMP/pages"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add rules-status.json
+          if git diff --cached --quiet; then echo "線上狀態已是最新"; else
+            git commit -q -m "rules-status $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            git push -q origin gh-pages
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithUi } from '../test/render';
 import { resetAll, jsonResponse } from '../test/helpers';
@@ -137,27 +137,72 @@ describe('匯率計算機', () => {
     });
 });
 
-describe('海關提醒', () => {
-    async function openChecklist(location: string) {
+type StatusJson = { sources: Record<string, { status: string }> };
+type RuleJson = { id: string; change?: unknown };
+
+describe('海關與檢疫提醒', () => {
+    const fs = () => import('node:fs');
+    async function files() {
+        const f = await fs();
+        return { rules: JSON.parse(f.readFileSync('public/prohibited_rules.json', 'utf8')), status: JSON.parse(f.readFileSync('public/rules-status.json', 'utf8')) };
+    }
+    async function openChecklist(location: string, opts: { statusFails?: boolean; patchStatus?: (s: StatusJson) => void } = {}) {
+        const { rules, status } = await files();
+        opts.patchStatus?.(status);
         const { id } = await createTripRecord('T', '2026-02-10', '2026-02-12');
         await patchConfig(id, { location });
-        const rules = JSON.parse((await import('node:fs')).readFileSync('public/prohibited_rules.json', 'utf8'));
-        vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(rules)));
+        vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+            if (String(url).endsWith('rules-status.json')) return opts.statusFails ? Promise.reject(new TypeError('offline')) : jsonResponse(status);
+            return jsonResponse(rules);
+        }));
         renderWithUi(<PackingChecklist tripId={id} />);
         await screen.findByText('行李準備進度');
+        return { status };
     }
 
-    it('日本行程顯示日本海關提醒與免責說明', async () => {
+    it('日本行程：先顯示日本規則，每條都有「開啟官方網頁核對」與最後核對日期，並有免責說明', async () => {
         await openChecklist('Sapporo, Japan');
-        expect(await screen.findByText(/日本海關：/)).toBeInTheDocument();
-        expect(screen.getByText(/不具法律效力/)).toBeInTheDocument();
+        expect(await screen.findByText('日本入境：禁止與限制的物品')).toBeInTheDocument();
+        expect(screen.getByText(/已於 \d{4}\/\d{2}\/\d{2} 核對官方來源/)).toBeInTheDocument();
+        expect(screen.getByText(/不具法律效力，請以官方公告為準/)).toBeInTheDocument();
+        expect(screen.getAllByRole('button', { name: /開啟官方網頁核對/ }).length).toBeGreaterThanOrEqual(3);
+        expect(screen.getAllByText(/・最後核對 \d{4}\/\d{2}\/\d{2}/).length).toBeGreaterThan(0);
+        expect(screen.getByText('回台灣：禁止攜帶的物品')).toBeInTheDocument(); // 回國規定一律顯示
     });
 
-    it('Austria 不會被誤判成美國', async () => {
+    it('Austria 不會被誤判成美國（也沒有任何美國規則）；沒有整理的目的地會說明', async () => {
         await openChecklist('Salzburg, Austria');
-        await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
-        await new Promise((r) => setTimeout(r, 30));
-        expect(screen.queryByText(/美國海關/)).not.toBeInTheDocument();
+        expect(await screen.findByText(/目前沒有已核對的官方整理/)).toBeInTheDocument();
+        expect(screen.queryByText(/美國/)).not.toBeInTheDocument();
+    });
+
+    it('官方來源有變動待確認：顯示「官方來源有變動待確認，請以官方網站為準」警示', async () => {
+        await openChecklist('Tokyo, Japan', { patchStatus: (s) => {
+            s.sources['jp-customs-passenger'].status = 'review';
+        } });
+        expect(await screen.findByText('官方來源有變動待確認，請以官方網站為準')).toBeInTheDocument();
+    });
+
+    it('離線（核對狀態抓不到）：使用上次存下的資料並標示日期', async () => {
+        await openChecklist('Tokyo, Japan'); // 先正常載入一次，存下快取
+        cleanup();
+        await openChecklist('Tokyo, Japan', { statusFails: true });
+        expect(await screen.findByText(/目前無法連線核對，顯示 \d{4}\/\d{2}\/\d{2} 存下的資料/)).toBeInTheDocument();
+    });
+
+    it('官方內容自動更新過：顯示「規則已更新」與變更摘要', async () => {
+        await openChecklist('Tokyo, Japan', { patchStatus: () => {} });
+        // 以 patch 規則檔的方式測：直接另開一份帶 change 的資料
+        cleanup();
+        const { rules, status } = await files();
+        const today = new Date().toISOString().slice(0, 10);
+        (rules.rules as RuleJson[]).find((r) => r.id === 'tw-customs-prohibited')!.change = { at: today, summary: '新增 1 條、移除 0 條', added: ['新增的一條'], removed: [] };
+        const { id } = await createTripRecord('T2', '2026-02-10', '2026-02-12');
+        vi.stubGlobal('fetch', vi.fn(async (url: string) => jsonResponse(String(url).endsWith('rules-status.json') ? status : rules)));
+        localStorage.clear();
+        renderWithUi(<PackingChecklist tripId={id} />);
+        expect(await screen.findByText(/規則已更新/)).toBeInTheDocument();
+        expect(screen.getByText(/新增 1 條、移除 0 條/)).toBeInTheDocument();
     });
 });
 

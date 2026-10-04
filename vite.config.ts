@@ -37,10 +37,17 @@ export default defineConfig({
             },
             workbox: {
                 globPatterns: ['**/*.{js,css,html,png,svg,json}'],
+                // 核對狀態每天更新，不放進預先快取（否則每天都會觸發「有新版本」）；改用網路優先、離線時用上次存的
+                globIgnores: ['rules-status.json'],
                 navigateFallback: `${base}index.html`,
                 cleanupOutdatedCaches: true,
                 clientsClaim: true,
                 runtimeCaching: [
+                    {
+                        urlPattern: ({ url }) => url.pathname.endsWith('/rules-status.json'),
+                        handler: 'NetworkFirst',
+                        options: { cacheName: 'rules-status', networkTimeoutSeconds: 4, expiration: { maxEntries: 1 }, cacheableResponse: { statuses: [200] } },
+                    },
                     {
                         // 景點背景圖（維基百科縮圖）：看過的離線也還在，最多存 80 張、30 天
                         urlPattern: ({ url }) => url.hostname === 'upload.wikimedia.org',
@@ -58,7 +65,7 @@ export default defineConfig({
     test: {
         environment: 'jsdom',
         setupFiles: ['./src/test/setup.ts'],
-        include: ['src/**/*.test.{ts,tsx}'],
+        include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.mjs'],
         css: false,
         restoreMocks: true,
     },

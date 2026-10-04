@@ -144,7 +144,7 @@ await t.step('行李清單：預設項目、勾選、進度、日本海關提醒
     await page.getByText('護照（確認效期）').waitFor();
     await page.getByRole('checkbox', { name: /護照/ }).click();
     await page.getByText(/^1 \/ 9$/).waitFor();
-    await page.getByText(/日本海關：/).waitFor();
+    await page.getByText('日本入境：禁止與限制的物品').waitFor();
     await shot(page, '05-checklist-light-mobile');
 });
 
@@ -277,7 +277,7 @@ await t.step('桌面版（1280px）：側邊導覽列與雙欄卡片', async () 
         await desk.page.getByRole('heading', { name: n }).waitFor();
     }
     await desk.page.getByRole('button', { name: '完成' }).click();
-    await desk.page.getByText(/天氣服務暫時無法使用|到「設定」填寫主要地點/).waitFor();
+    await panel(desk.page).getByText(/天氣服務暫時無法使用|到「設定」填寫主要地點/).waitFor();
     await shot(desk.page, '02-itinerary-light-desktop');
 });
 await desk.ctx.close();

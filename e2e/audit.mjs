@@ -769,6 +769,78 @@ if (on('PWA')) {
     await sw.close();
 }
 
+
+// ============ 海關與檢疫規則 ============
+console.log('海關規則');
+if (on('海關規則')) {
+    for (const w of [390, 360]) {
+        const { ctx, page } = await ctxPage({ w, h: 800 });
+        let statusMode = 'ok';
+        await page.route('**/rules-status.json', async (r) => {
+            if (statusMode === 'off') return r.abort('internetdisconnected');
+            const res = await r.fetch();
+            const j = await res.json();
+            if (statusMode === 'review') j.sources['jp-customs-passenger'].status = 'review';
+            if (statusMode === 'stale') for (const k of Object.keys(j.sources)) j.sources[k].checked_at = '2026-01-01T00:00:00.000Z';
+            return r.fulfill({ json: j });
+        });
+        await restore(page, backupWith({}));
+        await nav(page, '清單');
+        await check('海關規則', `${w}px：日本旅程開啟「清單」`, '顯示日本規則（預設展開）與回台灣規則（收合）；有最後核對日期與免責；無溢出', async () => {
+            await page.getByText('日本入境：禁止與限制的物品').waitFor();
+            await page.getByText(/已於 \d{4}\/\d{2}\/\d{2} 核對官方來源/).waitFor();
+            await page.getByText(/不具法律效力/).waitFor();
+            await noOverflow(page, '海關規則');
+            const open = await page.locator('.customs-rule[open]').count();
+            expect(open === 2, `預設展開的規則數應為 2（日本），實際 ${open}`);
+            await shot(page, `i1-customs-${w}`);
+            return '日本 2 條展開、回台灣 4 條收合';
+        });
+        await check('海關規則', `${w}px：展開回台灣規則、看官方原文、按「開啟官方網頁核對」`, '條目為官方原文；按鈕開啟官方網址（政府網域）', async () => {
+            await page.getByText('回台灣：禁止攜帶的物品').click();
+            await page.getByText(/毒品危害防制條例/).waitFor();
+            await page.locator('.customs-orig > summary').first().click();
+            await page.locator('.customs-orig[open] [lang=en]').first().waitFor();
+            await ctx.route(/(gov\.tw|go\.jp|gov\.sg)/, (r) => r.fulfill({ body: 'ok' }));
+            const [popup] = await Promise.all([ctx.waitForEvent('page'), page.locator('.customs-rule[open]').first().getByRole('button', { name: /開啟官方網頁核對/ }).click()]);
+            await popup.waitForURL(/(gov\.tw|go\.jp|gov\.sg)/);
+            const host = new URL(popup.url()).hostname;
+            await popup.close();
+            return '開啟 ' + host;
+        });
+        statusMode = 'review';
+        await check('海關規則', `${w}px：官方來源有變動待確認（狀態檔標為 review）`, '顯示「官方來源有變動待確認，請以官方網站為準」，並在該規則標「待確認」', async () => {
+            await page.reload();
+            await nav(page, '清單');
+            await page.getByText('官方來源有變動待確認，請以官方網站為準').waitFor();
+            await page.locator('.chip-warn', { hasText: '待確認' }).first().waitFor();
+            await shot(page, `i2-customs-review-${w}`);
+            return '警示與標籤皆顯示';
+        });
+        statusMode = 'stale';
+        await check('海關規則', `${w}px：超過 7 天沒有成功核對`, '顯示「超過 7 天沒有成功核對」提示', async () => {
+            await page.reload();
+            await nav(page, '清單');
+            await page.getByText(/超過 7 天沒有成功核對/).waitFor();
+            return '提示顯示';
+        });
+        statusMode = 'ok';
+        await page.reload();
+        await nav(page, '清單');
+        await page.getByText(/已於 \d{4}\/\d{2}\/\d{2} 核對/).waitFor();
+        statusMode = 'off';
+        await check('海關規則', `${w}px：離線（核對服務連不上）重新整理`, '使用上次存下的規則與狀態，並標示「目前無法連線核對，顯示 … 存下的資料」', async () => {
+            await page.reload();
+            await nav(page, '清單');
+            await page.getByText(/目前無法連線核對，顯示 \d{4}\/\d{2}\/\d{2} 存下的資料/).waitFor();
+            await page.getByText('日本入境：禁止與限制的物品').waitFor();
+            await shot(page, `i3-customs-offline-${w}`);
+            return '離線仍顯示規則與日期';
+        });
+        await ctx.close();
+    }
+}
+
 // ============ 螢幕寬度 × 瀏覽器語系 × 直橫切換：各分頁溢出與用語檢查 ============
 console.log('版面與語系');
 if (on('版面與語系')) for (const [w, h, locale] of [[390, 844, 'zh-TW'], [360, 740, 'zh-TW'], [390, 844, 'en-US'], [360, 740, 'en-US'], [844, 390, 'zh-TW']]) {

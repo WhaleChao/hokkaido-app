@@ -1,110 +1,280 @@
 {
-  "last_reviewed": "2026-02-22",
-  "note": "這是提醒用的摘要，不是法律文件。內容為人工整理、未逐條對照官方公告驗證，規定可能變動，出發前請以官方公告為準。",
+  "schema": 2,
+  "updated_at": "2026-10-04T12:01:09.952Z",
   "sources": [
     {
-      "name": "日本海關",
-      "url": "https://www.customs.go.jp/"
+      "id": "tw-customs-prohibited",
+      "agency": "財政部關務署（臺北關）",
+      "name": "入境旅客：禁止攜帶",
+      "url": "https://web.customs.gov.tw/taipei/singlehtml/3392?cntId=cus2_3392_3392_1342",
+      "lang": "zh",
+      "mode": "verbatim",
+      "published": "2026-08-24"
     },
     {
-      "name": "台灣動植物防疫檢疫署",
-      "url": "https://www.aphia.gov.tw/"
+      "id": "tw-customs-medicine",
+      "agency": "財政部關務署（臺北關）",
+      "name": "入境旅客：藥物及醫療器材（自用藥物限量）",
+      "url": "https://web.customs.gov.tw/taipei/singlehtml/3392?cntId=cus2_3392_3392_1347",
+      "lang": "zh",
+      "mode": "verbatim",
+      "published": "2025-06-24"
     },
     {
-      "name": "韓國關稅廳",
-      "url": "https://www.customs.go.kr/"
+      "id": "tw-customs-food",
+      "agency": "財政部關務署（臺北關）",
+      "name": "入境旅客：農畜水產品及食品",
+      "url": "https://web.customs.gov.tw/taipei/singlehtml/3392?cntId=cus2_3392_3392_1351",
+      "lang": "zh",
+      "mode": "verbatim",
+      "published": "2025-09-01"
     },
     {
-      "name": "美國海關暨邊境保護局",
-      "url": "https://www.cbp.gov/travel"
+      "id": "tw-aphia-traveler",
+      "agency": "農業部動植物防疫檢疫署",
+      "name": "入境旅客專區（出國必看不買清單）",
+      "url": "https://www.aphia.gov.tw/ws.php?id=4502",
+      "lang": "zh",
+      "mode": "verbatim"
     },
     {
-      "name": "新加坡海關",
-      "url": "https://www.customs.gov.sg/"
+      "id": "jp-customs-passenger",
+      "agency": "日本財務省關稅局（Japan Customs）",
+      "name": "Passenger（旅客攜帶品：禁止與限制物品）",
+      "url": "https://www.customs.go.jp/english/summary/passenger.htm",
+      "lang": "en",
+      "mode": "curated"
     },
     {
-      "name": "歐盟海關",
-      "url": "https://taxation-customs.ec.europa.eu/customs_en"
+      "id": "jp-maff-animal",
+      "agency": "日本農林水產省動物檢疫所（MAFF AQS）",
+      "name": "Q&A for travelers：攜帶畜產品入境",
+      "url": "https://www.maff.go.jp/e/policies/ap_health/animal/240904.html",
+      "lang": "en",
+      "mode": "curated"
+    },
+    {
+      "id": "sg-customs-chewing-gum",
+      "agency": "新加坡海關（Singapore Customs）",
+      "name": "Chewing Gum (HS Code 17041000)",
+      "url": "https://customs.gov.sg/businesses/national-single-window/tradenet/competent-authorities-requirements/chewing-gum",
+      "lang": "en",
+      "mode": "curated"
     }
   ],
   "rules": [
     {
+      "id": "tw-customs-prohibited",
+      "source_id": "tw-customs-prohibited",
+      "mode": "verbatim",
+      "title": "回台灣：禁止攜帶的物品",
+      "lead": "以下是海關公告的禁止攜帶物品（官方原文）。",
+      "always": true,
+      "keywords": [],
+      "items": [
+        "一、毒品危害防制條例第2條1所列毒品，及非醫師處方或非醫療性之管制藥品 （如海洛因、嗎啡、鴉片、古柯鹼、罌粟或罌粟籽、古柯、安非他命、吩坦尼、大麻、大麻籽、四氫大麻酚(THCs)含量大於10ppm之大麻或大麻籽產製品等）。",
+        "二、槍砲彈藥刀械管制條例第4條2所列槍砲（如獵槍、空氣槍、魚槍、瓦斯槍等）、彈藥（如子彈、爆裂物等）及刀械(如已開鋒之武士刀)。但持憑主管機關許可文件並於入境時向海關申報者不在此限。",
+        "三、侵害專利權、商標權及著作權之物品。惟屬入境人員行李之一部分而輸入著作重製物(如國外合法銷售之錄音帶、錄影帶、唱片、影音光碟及電腦軟體、書刊文件...等)者，每次每一著作以一份為限。",
+        "四、偽造或變造之貨幣、有價證券及印製偽幣印模。",
+        "五、野生動物之活體及保育類野生動植物及其產製品，未經行政院農業委員會(陸域動物)或海洋委員會(海域動物)之許可，不得進口；如兼屬瀕臨絕種野生動植物國際貿易公約(簡稱CITES)列管物品之活體或其產製品者，除個人非商業之擁有或持有，穿戴、攜帶、包括於個人行李或家庭搬遷，且合法取得不超過經濟部國際貿易局111年4月26日經貿字第11104601760號公告「個人輸入瀕臨絕種動植物及其產製品准許免檢附出口國核發之瀕臨絕種動植物國際貿易公約（CITES）許可證之適用範圍」之「瀕臨絕種動植物之物種附表二物種之非活體標本及其產製品」數量及重量，得免檢附出口國核發之CITES許可證辦理輸入，如超逾上述公告範圍之數量與重量或商業等其他用途皆須檢附輸出國簽發之CITES許可證，向海關申報查驗。(詳細說明請參閱「寵物通關」篇及「農畜水產品及食品」篇)",
+        "六、其他法律規定不得進口或禁止輸入之物品。"
+      ]
+    },
+    {
+      "id": "tw-customs-medicine",
+      "source_id": "tw-customs-medicine",
+      "mode": "verbatim",
+      "title": "回台灣：自用藥物的攜帶限量",
+      "lead": "海關公告的自用藥物限量規定（官方原文）。",
+      "always": true,
+      "keywords": [],
+      "items": [
+        "依據衛生福利部會同財政部公告之「入境旅客攜帶自用藥物限量表」規定，說明如下：",
+        "旅客攜帶自用之藥物，不得供非自用之用途。",
+        "藥品成分含保育類物種者，應先取得主管機關(農業部)同意始可攜帶入境。我國以處方藥管理之藥品，如國外係以非處方藥管理者適用非處方藥之限量規定。",
+        "每位旅客攜帶自用藥物之限量規定如下表：",
+        "每位旅客攜帶自用藥物之限量規定",
+        "非處方藥每種至多12瓶(盒、罐、條、支)，合計以不超過36瓶(盒、罐、條、支)為限。",
+        "所攜西藥超逾左列限量規定時，應檢附衛生福利部食品藥物管理署(下稱食藥署)簽發之「個人自用藥品專案進口許可證」(請參考該署網頁/線上申辦平台/藥品)，並於入境時向海關申報，始得攜帶入境。",
+        "處方藥未攜帶醫師處方箋(或證明文件)以2個月用量為限。攜帶醫師處方箋(或證明文件)者不得超過處方箋(或證明文件)開立之合理用量，且以6個月用量為限。",
+        "※針劑產品須攜帶醫師處方箋（或證明文件）。",
+        "管制藥品須憑醫療院所之醫師處方箋(或出具之證明文件)，並以治療其本人疾病者為限，其攜帶量不得超過該醫師處方箋(或出具之證明文件)，且以6個月用量為限。",
+        "攜帶管制藥物出入境，可向食藥署申請「病人隨身攜帶管制藥品入境出境中華民國證明書」，憑以辦理出入境事宜。",
+        "中藥材每種至多1公斤，合計不得超過12種。",
+        "於前述限量外攜帶入境之中藥材，應檢附醫療證明文件(如醫師診斷證明)，且不逾3個月用量為限。",
+        "所攜中藥材或中藥製劑(藥品)超逾左列限量規定時，應檢附衛生福利部中醫藥司簽發之輸入許可證，並於入境時向海關申報，始得攜帶入境。",
+        "中藥製劑(藥品)每種至多12瓶(盒)，合計以不超過36瓶(盒)為限。",
+        "於前述限量外攜帶入境之中藥製劑(藥品)，應檢附醫療證明文件(如醫師診斷證明)，且不逾3個月用量為限。",
+        "※輸入犀角、虎骨、豹骨、玳瑁、熊膽、麝香、水獺肝、穿山甲等保育類野生動物中藥材或含其成分之中藥製劑（藥品），應先取得行政院農業委員會核可。",
+        "※攜帶瀕臨絕種野生動植物及其產製品(CITES)，依據111年4月26日經濟部公告，旅客可攜帶白芨、天麻、石斛(Dendrobium spp.,不包括Dendrobium cruentum)、金狗毛蕨、大葉甘松、印度胡黃連、肉蓯蓉、人參、西洋參、蘆薈，總計1公斤內免檢附（CITES）許可文件; 超逾上述CITES品項之數量(1公斤)或是攜帶其它CITES所列之動植物及其產製品仍須檢附（CITES）許可文件，並向海關辦理進出口通關手續。",
+        "錠狀、膠囊狀食品每種至多12瓶(盒、罐、包、袋)，合計以不超過36瓶(盒、罐、包、袋)為限。",
+        "超逾左列限量規定者，應檢附食藥署簽發之輸入許可證(請參考該署網頁/線上申辦平台/食品)，並於入境時向海關申報，始得攜帶入境。",
+        "※為確保旅客的權益，如隨身攜帶醫生處方藥品出入境，建議事先向出境及入境國家確認攜帶藥品規定，並備妥中英文之醫師處方箋(或證明文件)，俾利機場查驗人員瞭解用藥需求。",
+        "※關於管制藥品之分類及分級問題，可參考食藥署網頁/管制藥品業務專區。",
+        "※關於其他藥品分類問題，可利用食藥署「西藥、醫療器材、含藥化粧品許可證查詢」網頁，輸入中英文品名或主要成分予以查詢藥品類別。"
+      ]
+    },
+    {
+      "id": "tw-customs-food",
+      "source_id": "tw-customs-food",
+      "mode": "verbatim",
+      "title": "回台灣：農畜水產品與食品的限量與檢驗",
+      "lead": "海關公告的檢疫、限量與食品檢驗規定（官方原文）。",
+      "always": true,
+      "keywords": [],
+      "items": [
+        "※每位旅客攜帶農畜水產或食品類入境，如同時符合下列一~五規定，始得攜帶入境。",
+        "※超逾下列一~五所訂之許可輸入範圍者，應取得主管機關簽發之輸入許可或同意進口文件，並於入境時主動至紅線(應申報/通關諮詢)檯通關，向海關申報，以免遭受重罰。",
+        "二、 限量(含大陸地區之特殊規定)",
+        "五、自用家用行李物品總價值之限制(請參閱「 免稅及應稅」篇)",
+        "一、動植物檢疫：",
+        "茲依據入境旅客攜帶行李物品報驗稅放辦法(下稱驗放辦法)第4條附表規定，說明如下：",
+        "(一) 禁止攜帶活動物及其產品；但下列產品除外：",
+        "經加工、調製之水產品。",
+        "符合動物傳染病防治條例規定(即動物檢疫規定)之動物產品。(另關於犬、貓、兔等活動物通關規定，請參閱「寵物通關」篇)",
+        "(二) 禁止攜帶活植物及其生鮮產品；但符合植物防疫檢疫法規定(即植物檢疫規定)者除外。",
+        "(三) 常見動植物檢疫規定，您可下載主管機關行政院農業部動植物防疫檢疫署(下稱防檢署)公告之「入境旅客攜帶常見動植物或其產品檢疫規定參考表」或至該署網頁「入境旅客專區」查閱。",
+        "為避免動植 物疫病或蟲害隨旅客攜帶之行李物品傳入國內(例如： 非洲豬瘟、口蹄疫、 禽流感、秋行軍蟲及其他未知病蟲害)，請於購買前詳閱產品成分說明，如仍有檢疫相關問題，可逕向防檢署洽詢，或於入境時向該署駐機場檢疫櫃檯(行李轉盤旁)諮詢。",
+        "二、限量(含大陸地區物品之特殊規定)：",
+        "茲依據驗放辦法第4條附表規定，說明如下：",
+        "(一) 食米(白米或糯米)、熟花生、熟蒜頭、乾金針、乾香菇、茶葉各不得超過1公斤；農畜水產品類總量不得超過6公斤。",
+        "(二) 大陸地區之物品 :",
+        "農畜水產品類 : 干貝、鮑魚干、燕窩、魚翅各限量1.2公斤；食米(白米或糯米)、熟花生、熟蒜頭、乾金針、乾香菇、茶葉各限量1公斤。總量不得超過6公斤。",
+        "罐頭 : 限量各6罐 (總量不得超過6公斤)。",
+        "其他食品 : 總量不得超過6公斤。",
+        "(三) 超過上開限量規定者，應檢附經濟部國際貿易署(下稱國貿署)簽發之輸入許可證；另攜帶食米者，應併附行政院農業部農糧署簽發之進口同意文件，憑以向海關申報輸入。",
+        "茲依據衛生福利部公告，說明如下。",
+        "(一) 旅客輸入供自用之食品(錠狀膠囊狀食品除外)，其價值在1,000美元以下且重量在6公斤以內者，免向主管機關行政院衛生福利部 食品藥物管理署(下稱食藥署)申請食品查驗，可逕行攜入。",
+        "(二) 超過上開免食品檢驗規定者，應向食藥署申請食品檢驗，經該署簽發進口許可證或同意文件後，憑以向海關申報、攜帶入境"
+      ]
+    },
+    {
+      "id": "tw-aphia-traveler",
+      "source_id": "tw-aphia-traveler",
+      "mode": "verbatim",
+      "title": "回台灣：動植物及其產品",
+      "lead": "防檢署公告旅客不得攜帶的動植物項目（官方原文）。",
+      "always": true,
+      "keywords": [],
+      "items": [
+        "入境旅客攜帶動植物或其產品，請於出國前事先洽詢本署相關檢疫規定，並於入境時誠實向海關或本署申請檢疫，以免受罰。",
+        "請注意，旅客（含託運行李）以下種類均不得攜帶：",
+        "鮮果實（如水果類、瓜果類、檳榔等）。",
+        "土壤、附著土壤之植物、植物產品或其他物品。",
+        "有害生物或活昆蟲：如病原微生物、蚱蜢、甲蟲、兜蟲(獨角仙)、鍬形蟲等。",
+        "列屬禁止輸入疫區之寄主植物或其產品。",
+        "列屬禁止輸入之應施檢疫動物及動物產品(例如來自近三年發生非洲豬瘟國家之豬肉及豬肉製品等)。"
+      ]
+    },
+    {
+      "id": "jp-customs-passenger",
+      "source_id": "jp-customs-passenger",
+      "mode": "curated",
+      "title": "日本入境：禁止與限制的物品",
+      "lead": "依日本海關公告整理（官方原文為英文，可展開查看）。",
+      "always": false,
       "keywords": [
         "日本",
         "東京",
         "大阪",
         "北海道",
+        "札幌",
+        "京都",
         "沖繩",
+        "福岡",
+        "名古屋",
         "japan",
         "tokyo",
         "osaka",
         "hokkaido",
+        "sapporo",
+        "kyoto",
         "okinawa",
-        "jp"
+        "fukuoka",
+        "nagoya"
       ],
-      "message": "日本海關：嚴格限制包含「偽麻黃鹼」與「可待因」（如百斯德、大正）等感冒藥入境，每人總量勿超過一個月；攜帶處方藥物請務必備妥英文處方箋。"
+      "summary": [
+        "毒品（含興奮劑、精神藥物）、槍砲彈藥、爆裂物、偽造的貨幣與信用卡、猥褻物品與兒童色情、侵害智慧財產權的物品，禁止帶進日本。",
+        "動物與植物（含其產品）必須先接受動植物檢疫，不能直接通關。",
+        "藥品與化妝品有數量限制；官方舉例：藥品以兩個月用量為限、化妝品以 24 次的量為限。詳情請看日本厚生勞動省網站。",
+        "沒有許可不能攜帶獵槍、氣槍、刀劍入境。"
+      ],
+      "items": [
+        "Prohibited Articles",
+        "The following articles are prohibited from entry by law:",
+        "Heroin, cocaine, MDMA, opium, cannabis, stimulants, psychotropic substances, and other narcotic drugs (excluding those designated by Ministry of Health, Labour and Welfare Ordinance);",
+        "Firearms (pistols, etc.), ammunition (bullets) thereof, and pistol parts;",
+        "Explosives (dynamite, gunpowder, etc.) ;",
+        "Precursor materials for chemical weapons;",
+        "Counterfeit, altered, or imitation coins, paper money, bank notes, or securities, and forged credit cards;",
+        "Books, drawings, carvings, and any other article which may harm public safety or morals (obscene or immoral materials, e.g., pornography);",
+        "Child pornography; and",
+        "Articles which infringe upon intellectual property rights.",
+        "Restricted Articles",
+        "Some other goods are restricted by other laws and regulations. When you import such goods, permits and approval under laws and regulations other than the Customs Law are required, or the goods must be examined by a government agency, as the case may be.",
+        "Major restricted items are listed below:",
+        "Plants and animals must be presented to the plant or animal quarantine officer for quarantine inspection prior to Customs examination.",
+        "There are quantity restrictions on the import of medicine and cosmetics.",
+        "(e.g., for pharmaceutical products: amount for use for a period of 2 months; quasi-drugs: amount for use for a period of 2 months; cosmetics: 24 applications) Web-site of the Ministry of Health, Labour and Welfare *Click here for details.",
+        "No person shall bring hunting guns, air guns, swords, etc. into Japan without a permit to possess."
+      ],
+      "reviewed_hash": "683ca286aeca0d0a05c791c783f61d3a701587f8919531999ed3d68e7fe10708"
     },
     {
+      "id": "jp-maff-animal",
+      "source_id": "jp-maff-animal",
+      "mode": "curated",
+      "title": "日本入境：肉類與肉製品",
+      "lead": "依日本動物檢疫所的旅客 Q&A 整理（官方原文為英文，可展開查看）。",
+      "always": false,
       "keywords": [
-        "韓國",
-        "首爾",
-        "釜山",
-        "濟州",
-        "korea",
-        "seoul",
-        "busan",
-        "kr"
+        "日本",
+        "東京",
+        "大阪",
+        "北海道",
+        "札幌",
+        "京都",
+        "沖繩",
+        "福岡",
+        "名古屋",
+        "japan",
+        "tokyo",
+        "osaka",
+        "hokkaido",
+        "sapporo",
+        "kyoto",
+        "okinawa",
+        "fukuoka",
+        "nagoya"
       ],
-      "message": "韓國海關：嚴禁隨身行李與托運行李攜帶任何含有豬、牛、羊等肉類抽提物的食品（含大部分有肉塊之杯麵、辛拉麵等），違法將面臨數百萬韓元高額罰金。"
+      "summary": [
+        "生肉、火腿、香腸、臘肉、肉乾等肉製品，以及只含一點肉的食品（肉包、餃子、火腿三明治、機上餐的剩食），都屬於動物檢疫的對象，請不要帶進日本。",
+        "未申報而被認定為惡意，可能遭警方逮捕，罰款最高 300 萬日圓或最長三年有期徒刑。"
+      ],
+      "items": [
+        "It includes, of course, products whose main ingredient is meat, such as fresh meat, cured ham, sausage, salami, bacon, and jerky. Products that contain even the slightest amount of meat, such as nikuman (Japanese steamed pork buns), gyoza (Japanese dumplings), ham sandwiches, onsen tamago (Japanese low-temperature boiled egg), and leftovers from in-flight meals, are also subject to animal quarantine.",
+        "If you are found to have brought meat products into Japan without declaring them, and if the act is deemed to be malicious, you may be arrested by the police. Note that in the event this occurs, you will be subject to a penalty for attempting to illegally bring in such goods (a fine of up to three million yen [up to 50 million yen for corporations] or imprisonment for up to three years)."
+      ],
+      "reviewed_hash": "460e2bde859d7103fe586b83f280ac476ce68cd1912b9af29d4980b758561957"
     },
     {
-      "keywords": [
-        "美國",
-        "紐約",
-        "洛杉磯",
-        "夏威夷",
-        "us",
-        "usa",
-        "america",
-        "hawaii"
-      ],
-      "message": "美國海關：FDA 嚴格禁止未經批准的外國處方藥物入境；嚴禁攜帶任何新鮮農產品、肉類；「健達出奇蛋」因內含塑膠玩具屬違禁品，攜帶闖關每顆最高可罰數千美金。"
-    },
-    {
+      "id": "sg-customs-chewing-gum",
+      "source_id": "sg-customs-chewing-gum",
+      "mode": "curated",
+      "title": "新加坡入境：口香糖",
+      "lead": "依新加坡海關公告整理（官方原文為英文，可展開查看）。",
+      "always": false,
       "keywords": [
         "新加坡",
-        "singapore",
-        "sg"
+        "singapore"
       ],
-      "message": "新加坡海關：新加坡法律「全面禁止」攜帶口香糖入境。此外，電子菸、加熱菸等所有仿煙草製品皆為絕對違禁品，抓獲將面臨嚴重刑責與罰款。"
-    },
-    {
-      "keywords": [
-        "歐洲",
-        "英國",
-        "法國",
-        "德國",
-        "義大利",
-        "瑞士",
-        "europe",
-        "uk",
-        "france",
-        "germany",
-        "italy",
-        "switzerland",
-        "eu"
+      "summary": [
+        "新加坡海關公告：口香糖（HS 1704.10）禁止進口。官方列出的例外只針對貿易商在自由貿易區內再出口，不是給一般旅客的。請勿攜帶，出發前可向新加坡海關確認。"
       ],
-      "message": "歐洲海關：防範動物疫病，嚴格禁止非歐盟國家的遊客攜帶任何未經檢疫的肉製品或乳製品進口；進出申根國區若攜帶超過 10,000 歐元現金或等值物品，必須向海關申報。"
-    },
-    {
-      "keywords": [
-        "台灣",
-        "臺灣",
-        "回國",
-        "taiwan",
-        "tw"
+      "items": [
+        "The import of chewing gum classified under HS code 1704 1000 into Singapore is absolutely prohibited under the Regulation of Imports and Exports(Chewing Gum) Regulations."
       ],
-      "message": "台灣防檢署：回國注意！防範非洲豬瘟，任何形式之豬肉或豬肉製品（含生熟肉、肉塊泡麵、肉鬆）皆「絕對嚴禁」輸入台灣，違法初犯即重罰新台幣 20 萬元。"
+      "reviewed_hash": "964d233485e80e6db05612213e09d9354e025591bbfb7e51aedef610f0888b2e"
     }
   ]
 }
