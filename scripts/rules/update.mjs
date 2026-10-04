@@ -39,7 +39,8 @@ async function fetchPage(url, fetchImpl, retryDelayMs = 2000) {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             return await res.text();
         } catch (e) {
-            lastErr = e;
+            const cause = e?.cause ? `（${e.cause.code ?? e.cause.message}）` : '';
+            lastErr = new Error(`${e?.message ?? e}${cause}`);
             await new Promise((r) => setTimeout(r, retryDelayMs));
         }
     }
