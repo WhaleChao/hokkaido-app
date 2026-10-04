@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "updated_at": "2026-10-04T12:12:50.844Z",
+  "updated_at": "2026-10-04T12:13:49.643Z",
   "sources": [
     {
       "id": "tw-customs-prohibited",
@@ -79,17 +79,7 @@
         "四、偽造或變造之貨幣、有價證券及印製偽幣印模。",
         "五、野生動物之活體及保育類野生動植物及其產製品，未經行政院農業委員會(陸域動物)或海洋委員會(海域動物)之許可，不得進口；如兼屬瀕臨絕種野生動植物國際貿易公約(簡稱CITES)列管物品之活體或其產製品者，除個人非商業之擁有或持有，穿戴、攜帶、包括於個人行李或家庭搬遷，且合法取得不超過經濟部國際貿易局111年4月26日經貿字第11104601760號公告「個人輸入瀕臨絕種動植物及其產製品准許免檢附出口國核發之瀕臨絕種動植物國際貿易公約（CITES）許可證之適用範圍」之「瀕臨絕種動植物之物種附表二物種之非活體標本及其產製品」數量及重量，得免檢附出口國核發之CITES許可證辦理輸入，如超逾上述公告範圍之數量與重量或商業等其他用途皆須檢附輸出國簽發之CITES許可證，向海關申報查驗。(詳細說明請參閱「寵物通關」篇及「農畜水產品及食品」篇)",
         "六、其他法律規定不得進口或禁止輸入之物品。"
-      ],
-      "change": {
-        "at": "2026-10-04",
-        "summary": "新增 1 條、移除 1 條",
-        "added": [
-          "一、毒品危害防制條例第2條1所列毒品，及非醫師處方或非醫療性之管制藥品 （如海洛因、嗎啡、鴉片、古柯鹼、罌粟或罌粟籽、古柯、安非他命、吩坦尼、大麻、大麻籽、四氫大麻酚(THCs)含量大於10ppm之大麻或大麻籽產製品等）。"
-        ],
-        "removed": [
-          "一、毒品危害防制條例第2條1所列毒品，及非醫師處方或非醫療性之管制藥品 （如海洛因、嗎啡、鴉片、古柯鹼、罌粟或罌粟籽、古柯、安非他命、吩坦尼、大麻、大麻籽、四氫大麻酚(THCs)含量大於10ppm之大麻或大麻籽產製品等）。（測試：模擬舊版措辭）"
-        ]
-      }
+      ]
     },
     {
       "id": "tw-customs-medicine",
@@ -285,7 +275,7 @@
       "items": [
         "The import of chewing gum classified under HS code 1704 1000 into Singapore is absolutely prohibited under the Regulation of Imports and Exports(Chewing Gum) Regulations."
       ],
-      "reviewed_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+      "reviewed_hash": "964d233485e80e6db05612213e09d9354e025591bbfb7e51aedef610f0888b2e"
     }
   ]
 }
