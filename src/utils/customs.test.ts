@@ -61,3 +61,13 @@ describe('比對與驗證', () => {
         expect(freshness(undefined, now)).toBeNull();
     });
 });
+
+describe('人工核對項目的新鮮度', () => {
+    it('門檻是 45 天（自動核對項目是 7 天）', () => {
+        const now = Date.parse('2026-10-20T00:00:00Z');
+        const mk = (at: string, manual: boolean): SourceStatus => ({ status: 'ok', checked_at: at, hash: 'x'.repeat(64), manual });
+        expect(freshness(mk('2026-09-20', true), now)?.kind).toBe('ok');
+        expect(freshness(mk('2026-08-01', true), now)?.kind).toBe('stale');
+        expect(freshness(mk('2026-09-20', false), now)?.kind).toBe('stale');
+    });
+});

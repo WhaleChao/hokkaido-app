@@ -112,7 +112,7 @@ describe('自動更新流程', () => {
         expect(out.contentChanged).toBe(false);
         expect(JSON.stringify(out.rulesFile)).toBe(JSON.stringify(rules));
         expect(out.statusFile.checked_at).toBe(later.toISOString());
-        expect(Object.values(out.statusFile.sources).every((s) => s.status === 'ok' && s.checked_at === later.toISOString())).toBe(true);
+        expect(Object.values(out.statusFile.sources).filter((s) => !s.manual).every((s) => s.status === 'ok' && s.checked_at === later.toISOString())).toBe(true); // 人工核對項目保持上次人工核對的時間
         expect(out.statusChanged).toBe(false); // 只有時間不同，不算「狀態變動」（不會觸發無意義的部署）
         expect(out.issues).toHaveLength(0);
     });
@@ -183,9 +183,9 @@ describe('自動更新流程', () => {
         let cur = await baseline();
         let issues = 0;
         for (let day = 0; day < 3; day++) {
-            const out = await runUpdate({ currentRules: cur.rules, currentStatus: cur.status, fetchImpl: fakeFetch({ 'tw-aphia-traveler': { status: 503 } }), now: new Date(NOW.getTime() + day * 86400000), delayMs: 0, retryDelayMs: 0 });
-            expect(out.statusFile.sources['tw-aphia-traveler'].status).toBe('error');
-            expect(out.statusFile.sources['tw-aphia-traveler'].checked_at).toBe(cur.status.sources['tw-aphia-traveler'].checked_at); // 最後成功核對時間不變
+            const out = await runUpdate({ currentRules: cur.rules, currentStatus: cur.status, fetchImpl: fakeFetch({ 'tw-customs-medicine': { status: 503 } }), now: new Date(NOW.getTime() + day * 86400000), delayMs: 0, retryDelayMs: 0 });
+            expect(out.statusFile.sources['tw-customs-medicine'].status).toBe('error');
+            expect(out.statusFile.sources['tw-customs-medicine'].checked_at).toBe(cur.status.sources['tw-customs-medicine'].checked_at); // 最後成功核對時間不變
             issues += out.issues.length;
             if (day < 2) expect(out.issues).toHaveLength(0);
             cur = { rules: out.rulesFile, status: out.statusFile };
@@ -248,5 +248,20 @@ describe('開 Issue（只用 GITHUB_TOKEN）', () => {
     });
     it('API 失敗會丟錯（由呼叫端處理，不影響規則檔）', async () => {
         await expect(openIssue({ repo: 'o/r', token: 't', issue, fetchImpl: async () => new Response('no', { status: 403 }) })).rejects.toThrow(/403/);
+    });
+});
+
+describe('人工核對的來源（機器連不上的官方網站）', () => {
+    it('自動流程不會連線也不會改動；本機以 --manual 才會核對', async () => {
+        const base = await run({ fetchImpl: fakeFetch(), init: true });
+        const f = fakeFetch({ 'tw-aphia-traveler': new Error('逾時') });
+        const out = await run({ currentRules: base.rulesFile, currentStatus: base.statusFile, fetchImpl: f });
+        expect(f.calls.some((c) => c.url.includes('aphia.gov.tw'))).toBe(false);
+        expect(out.statusFile.sources['tw-aphia-traveler']).toEqual({ ...base.statusFile.sources['tw-aphia-traveler'], manual: true });
+        expect(out.statusFile.sources['tw-aphia-traveler'].status).toBe('ok');
+        expect(out.issues).toHaveLength(0);
+        const manual = await run({ currentRules: base.rulesFile, currentStatus: base.statusFile, fetchImpl: fakeFetch(), includeManual: true, now: new Date('2026-11-01T00:00:00Z') });
+        expect(manual.statusFile.sources['tw-aphia-traveler'].checked_at).toBe('2026-11-01T00:00:00.000Z');
+        expect(manual.rulesFile.sources.find((s) => s.id === 'tw-aphia-traveler').manual).toBe(true);
     });
 });

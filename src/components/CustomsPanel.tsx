@@ -61,7 +61,7 @@ function RuleCard({ rule, source, status, defaultOpen, now }: { rule: CustomsRul
 
                 <p className="small muted customs-source">
                     來源：{source.agency}「{source.name}」
-                    {status ? `・最後核對 ${dayOf(status.checked_at)}` : ''}
+                    {status ? `・最後核對 ${dayOf(status.checked_at)}${source.manual ? '（人工核對）' : ''}` : ''}
                     {source.published ? `・官方頁面標示發布日期 ${formatYMD(source.published)}` : ''}
                 </p>
                 <button type="button" className="link-btn" onClick={() => openExternal(source.url)}>
@@ -122,7 +122,7 @@ export function CustomsPanel({ location }: { location: string }) {
             {stale.length > 0 && (
                 <div className="notice" role="note" style={{ marginBottom: 10 }}>
                     <RefreshCw size={16} aria-hidden="true" />
-                    <span>部分項目已超過 7 天沒有成功核對官方來源，內容可能已經過時，請開啟官方網頁確認。</span>
+                    <span>部分項目已太久沒有核對官方來源（自動核對項目 7 天、人工核對項目 45 天），內容可能已經過時，請開啟官方網頁確認。</span>
                 </div>
             )}
             {loc && !hasDestination && (

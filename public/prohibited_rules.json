@@ -35,7 +35,8 @@
       "name": "入境旅客專區（出國必看不買清單）",
       "url": "https://www.aphia.gov.tw/ws.php?id=4502",
       "lang": "zh",
-      "mode": "verbatim"
+      "mode": "verbatim",
+      "manual": true
     },
     {
       "id": "jp-customs-passenger",

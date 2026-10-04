@@ -818,10 +818,10 @@ if (on('海關規則')) {
             return '警示與標籤皆顯示';
         });
         statusMode = 'stale';
-        await check('海關規則', `${w}px：超過 7 天沒有成功核對`, '顯示「超過 7 天沒有成功核對」提示', async () => {
+        await check('海關規則', `${w}px：太久沒有核對官方來源`, '顯示「超過 7 天沒有成功核對」提示', async () => {
             await page.reload();
             await nav(page, '清單');
-            await page.getByText(/超過 7 天沒有成功核對/).waitFor();
+            await page.getByText(/太久沒有核對官方來源/).waitFor();
             return '提示顯示';
         });
         statusMode = 'ok';

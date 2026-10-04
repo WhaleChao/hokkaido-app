@@ -84,6 +84,9 @@ export const SOURCES = [
     {
         id: 'tw-aphia-traveler',
         mode: 'verbatim',
+        // 防檢署網站連不上 GitHub Actions（實測 2026-10-04，海外 IP 連線逾時），無法每天自動核對；
+        // 改由人工在台灣網路下執行 `node scripts/rules/update.mjs --manual`，App 會標示「人工核對」與日期。
+        manual: true,
         agency: '農業部動植物防疫檢疫署',
         name: '入境旅客專區（出國必看不買清單）',
         url: 'https://www.aphia.gov.tw/ws.php?id=4502',

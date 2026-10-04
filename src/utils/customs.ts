@@ -9,6 +9,8 @@ export interface RuleSource {
     lang: 'zh' | 'en' | 'ja';
     mode: 'verbatim' | 'curated';
     published?: string;
+    /** 機器連不上該機關網站，由人工定期核對 */
+    manual?: boolean;
 }
 
 export interface CustomsRule {
@@ -41,6 +43,7 @@ export interface SourceStatus {
     hash: string;
     message?: string;
     issue_url?: string;
+    manual?: boolean;
 }
 
 export interface StatusFile {
@@ -108,9 +111,10 @@ const DAY = 86400000;
 
 /** 單一來源的狀態：待確認、連線異常、太久沒核對（超過 7 天）或正常。 */
 export function freshness(status: SourceStatus | undefined, now: number): Freshness | null {
+    const limit = status?.manual ? 45 : 7;
     if (!status) return null;
     if (status.status === 'review') return { kind: 'review' };
     const days = Math.floor((now - Date.parse(status.checked_at)) / DAY);
     if (status.status === 'error') return { kind: 'error' };
-    return days > 7 ? { kind: 'stale', days } : { kind: 'ok', days: Math.max(0, days) };
+    return days > limit ? { kind: 'stale', days } : { kind: 'ok', days: Math.max(0, days) };
 }

@@ -14,6 +14,7 @@ export function validateRulesFile(d) {
         if (!isStr(s?.id, 80) || !isStr(s?.name, 200) || !isStr(s?.agency, 200)) errs.push(`來源缺欄位：${s?.id}`);
         if (!/^https:\/\//.test(s?.url ?? '')) errs.push(`來源網址必須是 https：${s?.id}`);
         if (!['zh', 'en', 'ja'].includes(s?.lang)) errs.push(`來源語言不明：${s?.id}`);
+        if (s?.manual !== undefined && typeof s.manual !== 'boolean') errs.push(`來源 manual 格式錯誤：${s?.id}`);
         sourceIds.add(s?.id);
     }
     const ruleIds = new Set();

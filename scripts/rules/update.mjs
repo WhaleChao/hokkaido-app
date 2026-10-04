@@ -56,7 +56,7 @@ async function fetchPage(url, fetchImpl, retryDelayMs = 2000) {
  * @param {string[]}    o.accept        要把「目前官方原文」設為新基準的來源 id（人工確認後）
  * @param {boolean}     o.init          初次建立：所有 curated 來源直接以目前官方原文為基準
  */
-export async function runUpdate({ currentRules = null, currentStatus = null, fetchImpl = fetch, now = new Date(), accept = [], init = false, delayMs = 1500, retryDelayMs = 2000, sources = SOURCES, definitions = DEFINITIONS }) {
+export async function runUpdate({ currentRules = null, currentStatus = null, fetchImpl = fetch, now = new Date(), accept = [], init = false, delayMs = 1500, retryDelayMs = 2000, includeManual = false, sources = SOURCES, definitions = DEFINITIONS }) {
     const today = isoDay(now);
     const stamp = now.toISOString();
     const prevRules = new Map((currentRules?.rules ?? []).map((r) => [r.id, r]));
@@ -76,7 +76,18 @@ export async function runUpdate({ currentRules = null, currentStatus = null, fet
         const old = prevRules.get(def.id) ?? null;
         const oldStatus = prevStatus[src.id] ?? null;
         const keepOld = () => (old ? { rule: old, source: prevSources.get(src.id) } : null);
-        const baseSource = { id: src.id, agency: src.agency, name: src.name, url: src.url, lang: src.lang, mode: src.mode };
+        const baseSource = { id: src.id, agency: src.agency, name: src.name, url: src.url, lang: src.lang, mode: src.mode, ...(src.manual ? { manual: true } : {}) };
+
+        // 人工核對的來源（機器連不上）：自動流程不動它，保留上次人工核對的結果
+        if (src.manual && !includeManual && !init) {
+            const kept = keepOld();
+            if (!kept || !oldStatus) throw new Error(`人工核對的來源 ${src.id} 還沒有初始資料，請先在本機執行 node scripts/rules/update.mjs --manual`);
+            nextRules.push(kept.rule);
+            nextSources.push({ ...kept.source, manual: true });
+            nextStatus[src.id] = { ...oldStatus, manual: true };
+            log.push(`${src.id}: 人工核對項目，自動流程略過`);
+            continue;
+        }
 
         let parsed;
         let failure = null;
@@ -120,6 +131,7 @@ export async function runUpdate({ currentRules = null, currentStatus = null, fet
 
         const hash = hashLines(parsed.lines);
         const source = { ...baseSource, ...(parsed.published ? { published: parsed.published } : {}) };
+        const stamp2 = (st) => (src.manual ? { ...st, manual: true } : st);
 
         // ---- verbatim：官方中文原文，可靠且有變動就自動更新 ----
         if (src.mode === 'verbatim') {
@@ -156,7 +168,7 @@ export async function runUpdate({ currentRules = null, currentStatus = null, fet
                 log.push(`${src.id}: ${old ? '已自動更新' : '初次建立'}`);
             }
             nextSources.push(source);
-            nextStatus[src.id] = { status: 'ok', checked_at: stamp, hash };
+            nextStatus[src.id] = stamp2({ status: 'ok', checked_at: stamp, hash });
             continue;
         }
 
@@ -171,7 +183,7 @@ export async function runUpdate({ currentRules = null, currentStatus = null, fet
             if (!old || JSON.stringify({ ...old, change: undefined }) !== JSON.stringify(rule)) contentChanged = true;
             nextRules.push(rule);
             nextSources.push(source);
-            nextStatus[src.id] = { status: 'ok', checked_at: stamp, hash };
+            nextStatus[src.id] = stamp2({ status: 'ok', checked_at: stamp, hash });
             log.push(`${src.id}: ${baseline ? '已設為新基準' : '無變動'}`);
         } else {
             const key = `${src.id}:${hash}`;
@@ -238,6 +250,7 @@ async function main() {
     const accept = [];
     for (let i = 0; i < args.length; i++) if (args[i] === '--accept') accept.push(args[++i]);
     const init = args.includes('--init');
+    const includeManual = args.includes('--manual') || init;
 
     const readJson = (p) => {
         if (!existsSync(p)) return null;
@@ -251,7 +264,7 @@ async function main() {
     const currentStatus = init ? null : readJson(statusPath);
     if (currentRules && validateRulesFile(currentRules).length) throw new Error('現有的規則檔未通過驗證，請先修復：' + validateRulesFile(currentRules).join('；'));
 
-    const out = await runUpdate({ currentRules, currentStatus, accept, init });
+    const out = await runUpdate({ currentRules, currentStatus, accept, init, includeManual });
     out.log.forEach((l) => console.log(l));
 
     // 開 Issue（只用 GITHUB_TOKEN；本機執行沒有 token 就只列出來）
