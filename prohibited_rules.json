@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "updated_at": "2026-10-04T12:01:09.952Z",
+  "updated_at": "2026-10-04T12:13:49.643Z",
   "sources": [
     {
       "id": "tw-customs-prohibited",
@@ -35,7 +35,8 @@
       "name": "入境旅客專區（出國必看不買清單）",
       "url": "https://www.aphia.gov.tw/ws.php?id=4502",
       "lang": "zh",
-      "mode": "verbatim"
+      "mode": "verbatim",
+      "manual": true
     },
     {
       "id": "jp-customs-passenger",
