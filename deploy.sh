@@ -6,7 +6,7 @@ npm run predeploy
 cd dist
 touch .nojekyll
 git init -q
-git checkout -q -b main
+git checkout -q -B main
 git add -A
 git commit -q -m "deploy $(date -u +%Y-%m-%dT%H:%M:%SZ)"
 git push -f https://github.com/WhaleChao/hokkaido-app.git main:gh-pages
