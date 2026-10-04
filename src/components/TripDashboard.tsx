@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { Plus, Map, Trash2, CalendarDays, ChevronRight } from 'lucide-react';
 import { useTripManager } from '../hooks/useTripManager';
 import { readConfig, writeDays } from '../utils/tripData';
-import { validateTripDates, tripDayCount, formatMD, addDaysISO, todayISO } from '../utils/date';
+import { validateTripDates, tripDayCount, formatMD, formatYMD, addDaysISO, todayISO } from '../utils/date';
 import { sampleDays } from '../data/itinerary';
 import { patchConfig } from '../utils/tripData';
+import { DateField } from './ui/DateField';
 import { BackupButtons } from './BackupButtons';
 import { useUi } from './ui/uiContext';
 import { onData } from '../utils/bus';
+
+const todayISOFrom = (ms: number) => todayISO(new Date(ms));
 
 interface Props {
     manager: ReturnType<typeof useTripManager>;
@@ -48,7 +51,7 @@ export function TripDashboard({ manager }: Props) {
     const [errors, setErrors] = useState<{ name?: string; dates?: string }>({});
     const summaries = useTripSummaries(trips.map((t) => t.id).join(','));
 
-    if (loading) return <div className="loading" role="status">載入行程庫中…</div>;
+    if (loading) return <div className="loading" role="status">載入旅程庫中…</div>;
 
     const handleCreate = async () => {
         const next: typeof errors = {};
@@ -57,7 +60,7 @@ export function TripDashboard({ manager }: Props) {
         if (dateProblem) next.dates = dateProblem;
         setErrors(next);
         if (Object.keys(next).length > 0) return;
-        const id = await ui.run(() => createTrip(name.trim(), start, end), '建立行程失敗');
+        const id = await ui.run(() => createTrip(name.trim(), start, end), '建立旅程失敗');
         if (id) {
             setName('');
             setStart('');
@@ -72,7 +75,7 @@ export function TripDashboard({ manager }: Props) {
         await ui.run(async () => {
             const id = await createTrip('北海道三日範例', from, to);
             await patchConfig(id, { location: 'Sapporo, Japan', defaultRegion: '北海道', startDate: from, endDate: to });
-            const days = sampleDays.map((d, i) => ({ ...d, id: `day-${i + 1}`, dayLabel: `Day ${i + 1}`, attractions: d.attractions.map((a) => ({ ...a, id: `s${i + 1}-${a.id}` })) }));
+            const days = sampleDays.map((d, i) => ({ ...d, id: `day-${i + 1}`, dayLabel: `第 ${i + 1} 天`, attractions: d.attractions.map((a) => ({ ...a, id: `s${i + 1}-${a.id}` })) }));
             await writeDays(id, days, days.map((d) => d.id));
         }, '建立範例失敗');
     };
@@ -84,7 +87,7 @@ export function TripDashboard({ manager }: Props) {
             confirmText: '永久刪除',
             danger: true,
         });
-        if (ok) await ui.run(() => deleteTrip(id), '刪除失敗', '已刪除行程');
+        if (ok) await ui.run(() => deleteTrip(id), '刪除失敗', '已刪除旅程');
     };
 
     return (
@@ -93,8 +96,8 @@ export function TripDashboard({ manager }: Props) {
                 <div className="brand-mark" aria-hidden="true">
                     <Map size={32} />
                 </div>
-                <h1>我的行程庫</h1>
-                <p className="lead">行程、記帳與票券都存在這支手機，沒有網路也能用</p>
+                <h1>我的旅程庫</h1>
+                <p className="lead">旅程、記帳與票券都存在這支手機，沒有網路也能用</p>
             </div>
 
             {error && (
@@ -105,7 +108,7 @@ export function TripDashboard({ manager }: Props) {
 
             {!creating ? (
                 <button type="button" className="btn btn-primary btn-block" style={{ minHeight: 52, marginBottom: 20 }} onClick={() => setCreating(true)}>
-                    <Plus size={20} aria-hidden="true" /> 建立新的行程
+                    <Plus size={20} aria-hidden="true" /> 建立新旅程
                 </button>
             ) : (
                 <form
@@ -116,14 +119,14 @@ export function TripDashboard({ manager }: Props) {
                         void handleCreate();
                     }}
                     noValidate
-                    aria-label="建立新的行程"
+                    aria-label="建立新旅程"
                 >
                     <h2 className="section-title" style={{ margin: '0 0 12px' }}>
                         為這趟旅程命名並選擇日期
                     </h2>
                     <label className="field">
                         <span className="label">旅程名稱</span>
-                        <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：2027 大阪吃到飽之旅" aria-invalid={!!errors.name} data-autofocus />
+                        <input className="input" aria-label="旅程名稱" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：2027 大阪吃到飽之旅" aria-invalid={!!errors.name} data-autofocus />
                         {errors.name && (
                             <p className="field-error" role="alert">
                                 {errors.name}
@@ -131,14 +134,8 @@ export function TripDashboard({ manager }: Props) {
                         )}
                     </label>
                     <div className="field-row">
-                        <label className="field">
-                            <span className="label">出發日</span>
-                            <input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} aria-invalid={!!errors.dates} />
-                        </label>
-                        <label className="field">
-                            <span className="label">結束日</span>
-                            <input className="input" type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} aria-invalid={!!errors.dates} />
-                        </label>
+                        <DateField label="出發日" value={start} onChange={setStart} />
+                        <DateField label="結束日" value={end} min={start || undefined} onChange={setEnd} />
                     </div>
                     {errors.dates && (
                         <p className="field-error" role="alert">
@@ -156,11 +153,11 @@ export function TripDashboard({ manager }: Props) {
                 </form>
             )}
 
-            <h2 className="section-title">已儲存的行程（{trips.length}）</h2>
+            <h2 className="section-title">已儲存的旅程（{trips.length}）</h2>
             {trips.length === 0 ? (
                 <div className="empty-state">
                     <CalendarDays size={36} aria-hidden="true" />
-                    <p>還沒有任何行程</p>
+                    <p>還沒有任何旅程</p>
                     <button type="button" className="btn btn-ghost" onClick={() => void handleSample()}>
                         先建立一份北海道範例看看
                     </button>
@@ -177,12 +174,12 @@ export function TripDashboard({ manager }: Props) {
                                     <span className="trip-name" style={{ display: 'block' }}>
                                         {t.name}
                                     </span>
-                                    <span className="trip-meta">{summaries[t.id] ?? `建立於 ${new Date(t.createdAt).toLocaleDateString('zh-TW')}`}</span>
+                                    <span className="trip-meta">{summaries[t.id] ?? `建立於 ${formatYMD(todayISOFrom(t.createdAt))}`}</span>
                                 </span>
                                 <ChevronRight size={20} aria-hidden="true" className="muted" />
                                 <span className="sr-only">開啟 {t.name}</span>
                             </button>
-                            <button type="button" className="btn-icon danger" onClick={() => void handleDelete(t.id, t.name)} aria-label={`刪除行程：${t.name}`}>
+                            <button type="button" className="btn-icon danger" onClick={() => void handleDelete(t.id, t.name)} aria-label={`刪除旅程：${t.name}`}>
                                 <Trash2 size={20} aria-hidden="true" />
                             </button>
                         </li>

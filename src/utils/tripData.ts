@@ -35,8 +35,8 @@ export function emptyDay(id: string, index: number, startDate: string, location:
     const date = addDaysISO(startDate, index);
     return {
         id,
-        dayLabel: `Day ${index + 1}`,
-        date: date ? legacyDayLabel(date) : `Day ${index + 1}`,
+        dayLabel: `第 ${index + 1} 天`,
+        date: date ? legacyDayLabel(date) : `第 ${index + 1} 天`,
         locationLabel: location || '',
         attractions: [],
         advice: { clothing: '', snowCondition: '' },

@@ -5,7 +5,7 @@ import { type Ticket, type TicketType } from '../hooks/useTicketStore';
 import { readDays, takeSnapshot, writeDays, withLock } from './tripData';
 import { emitData } from './bus';
 
-// 行程分享碼格式與舊版相同（base64(encodeURIComponent(JSON))），朋友手上舊版產生的碼仍可匯入。
+// 旅程分享碼格式與舊版相同（base64(encodeURIComponent(JSON))），朋友手上舊版產生的碼仍可匯入。
 
 const CATEGORIES: Category[] = ['食物', '活動', '購物', '景點', '酒店', '交通'];
 const TAGS: Tag[] = ['必吃', '必買', '必拍', '正選', '備選'];
@@ -96,20 +96,20 @@ export function sanitizeDay(raw: unknown): DayItinerary | null {
 
 export function decodeShareCode(code: string): unknown {
     const cleaned = code.replace(/\s+/g, '');
-    if (!cleaned) throw new ShareError('請先貼上行程分享碼');
+    if (!cleaned) throw new ShareError('請先貼上旅程分享碼');
     try {
         return JSON.parse(decodeURIComponent(atob(cleaned)));
     } catch {
-        throw new ShareError('分享碼讀不出來，可能複製得不完整，請請朋友重新傳一次');
+        throw new ShareError('分享碼讀不出來，可能複製得不完整，請朋友重新傳一次');
     }
 }
 
 export function parseShareCode(code: string): SharePayload {
     const raw = decodeShareCode(code);
-    if (!raw || typeof raw !== 'object') throw new ShareError('這不是行程分享碼');
+    if (!raw || typeof raw !== 'object') throw new ShareError('這不是旅程分享碼');
     const p = raw as Record<string, unknown>;
     if (!p.config || typeof p.config !== 'object' || !Array.isArray(p.dayOrder) || !Array.isArray(p.days)) {
-        throw new ShareError('這不是行程分享碼（缺少行程內容）');
+        throw new ShareError('這不是旅程分享碼（缺少行程內容）');
     }
     if (p.days.length > MAX_DAYS) throw new ShareError('分享碼內的天數太多，無法匯入');
     const days = p.days.map(sanitizeDay).filter((d): d is DayItinerary => d !== null);

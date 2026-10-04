@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { MapPin, Plus, Edit3, Trash2, Link as LinkIcon, ShoppingCart, Search, Coffee } from 'lucide-react';
 import { type AppConfig, type Accommodation } from '../../data/config';
 import { normalizeHttpUrl, mapsSearchUrl, openExternal } from '../../utils/url';
+import { DateField } from '../ui/DateField';
 import { useUi } from '../ui/uiContext';
-import { todayISO } from '../../utils/date';
+import { todayISO, formatMD } from '../../utils/date';
 import { pickAccommodation } from '../../utils/accommodation';
 
 interface Props {
@@ -85,7 +86,7 @@ export function AccommodationCard({ config, updateConfig }: Props) {
                                 <h3 style={{ fontFamily: 'var(--serif)', fontSize: '1.05rem' }}>{acc.name}</h3>
                                 {acc.checkIn && acc.checkOut && (
                                     <span className="chip chip-brass">
-                                        {acc.checkIn.slice(5)} ～ {acc.checkOut.slice(5)}
+                                        {formatMD(acc.checkIn)} ～ {formatMD(acc.checkOut)}
                                     </span>
                                 )}
                             </div>
@@ -121,7 +122,7 @@ export function AccommodationCard({ config, updateConfig }: Props) {
                     >
                         <label className="field">
                             <span className="label">住宿名稱</span>
-                            <input className="input" value={draft.name ?? ''} onChange={(e) => setDraft({ ...draft, name: e.target.value })} aria-invalid={!!errors.name} data-autofocus />
+                            <input className="input" aria-label="住宿名稱" value={draft.name ?? ''} onChange={(e) => setDraft({ ...draft, name: e.target.value })} aria-invalid={!!errors.name} data-autofocus />
                             {errors.name && (
                                 <p className="field-error" role="alert">
                                     {errors.name}
@@ -130,7 +131,7 @@ export function AccommodationCard({ config, updateConfig }: Props) {
                         </label>
                         <label className="field">
                             <span className="label">地址（Google 地圖搜得到的完整名稱最好）</span>
-                            <input className="input" value={draft.address ?? ''} onChange={(e) => setDraft({ ...draft, address: e.target.value })} aria-invalid={!!errors.address} />
+                            <input className="input" aria-label="地址（Google 地圖搜得到的完整名稱最好）" value={draft.address ?? ''} onChange={(e) => setDraft({ ...draft, address: e.target.value })} aria-invalid={!!errors.address} />
                             {errors.address && (
                                 <p className="field-error" role="alert">
                                     {errors.address}
@@ -139,7 +140,7 @@ export function AccommodationCard({ config, updateConfig }: Props) {
                         </label>
                         <label className="field">
                             <span className="label">訂房或官網連結（選填）</span>
-                            <input className="input" inputMode="url" value={draft.url ?? ''} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://…" aria-invalid={!!errors.url} />
+                            <input className="input" inputMode="url" aria-label="訂房或官網連結（選填）" value={draft.url ?? ''} onChange={(e) => setDraft({ ...draft, url: e.target.value })} placeholder="https://…" aria-invalid={!!errors.url} />
                             {errors.url && (
                                 <p className="field-error" role="alert">
                                     {errors.url}
@@ -147,14 +148,8 @@ export function AccommodationCard({ config, updateConfig }: Props) {
                             )}
                         </label>
                         <div className="field-row">
-                            <label className="field">
-                                <span className="label">入住日</span>
-                                <input className="input" type="date" value={draft.checkIn ?? ''} onChange={(e) => setDraft({ ...draft, checkIn: e.target.value })} />
-                            </label>
-                            <label className="field">
-                                <span className="label">退房日</span>
-                                <input className="input" type="date" value={draft.checkOut ?? ''} min={draft.checkIn || undefined} onChange={(e) => setDraft({ ...draft, checkOut: e.target.value })} />
-                            </label>
+                            <DateField label="入住日" value={draft.checkIn ?? ''} onChange={(v) => setDraft({ ...draft, checkIn: v })} />
+                            <DateField label="退房日" value={draft.checkOut ?? ''} min={draft.checkIn || undefined} onChange={(v) => setDraft({ ...draft, checkOut: v })} />
                         </div>
                         {errors.dates && (
                             <p className="field-error" role="alert">

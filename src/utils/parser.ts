@@ -191,8 +191,8 @@ interface Block {
 function newDay(index: number, label: string): DayItinerary {
     return {
         id: dayIdFor(index),
-        dayLabel: `Day ${index + 1}`,
-        date: label || `Day ${index + 1}`,
+        dayLabel: `第 ${index + 1} 天`,
+        date: label || `第 ${index + 1} 天`,
         locationLabel: '',
         attractions: [],
         advice: { clothing: '', snowCondition: '' },

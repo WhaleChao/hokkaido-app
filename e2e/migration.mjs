@@ -148,7 +148,7 @@ await t.step('新版開啟後直接回到原本的行程（不是空白首頁）
 });
 await t.step('行程：舊版新增的景點與備註還在', async () => {
     await page.getByRole('heading', { name: '舊版景點小樽運河' }).waitFor();
-    await page.getByRole('button', { name: /Day 3/ }).waitFor();
+    await page.getByRole('button', { name: /第 3 天/ }).waitFor();
 });
 await t.step('住宿：舊版設定的住宿帶入日期後，新版的「返回住宿」按鈕出現', async () => {
     await page.getByRole('button', { name: /返回 舊版飯店/ }).waitFor();
@@ -189,7 +189,7 @@ await t.step('設定：舊版設定的地點、人數、日期都在', async () 
     };
     await need('主要地點 Sapporo, Japan', panel().getByText('Sapporo, Japan'));
     await need('同行人數 2 人', panel().getByText('2 人', { exact: true }));
-    await need('日期區間', panel().getByText(/2026-02-10\s*\S\s*2026-02-12/));
+    await need('日期區間', panel().getByText(/2026[-/]02[-/]10\s*\S\s*2026[-/]02[-/]12/));
 });
 await t.step('新版開啟後，舊版寫入的每一筆資料庫紀錄內容完全沒變', async () => {
     const after = await dumpDb(page);
@@ -204,7 +204,7 @@ await t.step('新版開啟後，舊版寫入的每一筆資料庫紀錄內容完
 });
 await t.step('新版寫入新資料（記一筆）後，舊資料仍然完整；重整後都還在', async () => {
     await nav2('記帳');
-    await page.getByRole('button', { name: /記一筆帳/ }).click();
+    await page.getByRole('button', { name: /記一筆花費/ }).click();
     await panel().getByLabel(/金額/).fill('800');
     await panel().getByLabel('說明').fill('新版便當');
     await page.getByRole('button', { name: '儲存', exact: true }).click();

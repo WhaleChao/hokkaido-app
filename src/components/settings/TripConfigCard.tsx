@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { type AppConfig, visibleLocation } from '../../data/config';
-import { CURRENCIES } from '../../utils/money';
+import { CURRENCIES, currencyName } from '../../utils/money';
 import { validateTripDates, tripDayCount } from '../../utils/date';
+import { DateField } from '../ui/DateField';
+import { formatYMD } from '../../utils/date';
 import { useUi } from '../ui/uiContext';
 
 interface Props {
@@ -78,7 +80,7 @@ export function TripConfigCard({ config, updateConfig }: Props) {
                     >
                         <label className="field">
                             <span className="label">旅程名稱</span>
-                            <input className="input" value={f.tripName} onChange={(e) => setF({ ...f, tripName: e.target.value })} aria-invalid={!!errors.tripName} data-autofocus />
+                            <input className="input" aria-label="旅程名稱" value={f.tripName} onChange={(e) => setF({ ...f, tripName: e.target.value })} aria-invalid={!!errors.tripName} data-autofocus />
                             {errors.tripName && (
                                 <p className="field-error" role="alert">
                                     {errors.tripName}
@@ -95,14 +97,8 @@ export function TripConfigCard({ config, updateConfig }: Props) {
                             <span className="hint">導航時會自動加在景點名稱前面，避免 Google 地圖找到同名的別處。</span>
                         </label>
                         <div className="field-row">
-                            <label className="field">
-                                <span className="label">出發日</span>
-                                <input className="input" type="date" value={f.startDate} onChange={(e) => setF({ ...f, startDate: e.target.value })} aria-invalid={!!errors.dates} />
-                            </label>
-                            <label className="field">
-                                <span className="label">結束日</span>
-                                <input className="input" type="date" value={f.endDate} min={f.startDate} onChange={(e) => setF({ ...f, endDate: e.target.value })} aria-invalid={!!errors.dates} />
-                            </label>
+                            <DateField label="出發日" value={f.startDate} onChange={(v) => setF({ ...f, startDate: v })} />
+                            <DateField label="結束日" value={f.endDate} min={f.startDate || undefined} onChange={(v) => setF({ ...f, endDate: v })} />
                         </div>
                         {errors.dates && (
                             <p className="field-error" role="alert">
@@ -111,7 +107,7 @@ export function TripConfigCard({ config, updateConfig }: Props) {
                         )}
                         <label className="field">
                             <span className="label">同行人數（分帳用）</span>
-                            <input className="input" inputMode="numeric" value={travelers} onChange={(e) => setTravelers(e.target.value)} aria-invalid={!!errors.travelers} />
+                            <input className="input" inputMode="numeric" aria-label="同行人數（分帳用）" value={travelers} onChange={(e) => setTravelers(e.target.value)} aria-invalid={!!errors.travelers} />
                             {errors.travelers && (
                                 <p className="field-error" role="alert">
                                     {errors.travelers}
@@ -121,7 +117,7 @@ export function TripConfigCard({ config, updateConfig }: Props) {
                         <div className="field-row">
                             <label className="field">
                                 <span className="label">當地幣別</span>
-                                <select className="select" value={f.tripCurrency} onChange={(e) => setF({ ...f, tripCurrency: e.target.value })}>
+                                <select className="select" aria-label="當地幣別" value={f.tripCurrency} onChange={(e) => setF({ ...f, tripCurrency: e.target.value })}>
                                     {CURRENCIES.map((c) => (
                                         <option key={c.code} value={c.code}>
                                             {c.label}
@@ -131,7 +127,7 @@ export function TripConfigCard({ config, updateConfig }: Props) {
                             </label>
                             <label className="field">
                                 <span className="label">結算幣別</span>
-                                <select className="select" value={f.baseCurrency} onChange={(e) => setF({ ...f, baseCurrency: e.target.value })}>
+                                <select className="select" aria-label="結算幣別" value={f.baseCurrency} onChange={(e) => setF({ ...f, baseCurrency: e.target.value })}>
                                     {CURRENCIES.map((c) => (
                                         <option key={c.code} value={c.code}>
                                             {c.label}
@@ -168,7 +164,7 @@ export function TripConfigCard({ config, updateConfig }: Props) {
                             <div>
                                 <dt>日期</dt>
                                 <dd>
-                                    {config.startDate} ～ {config.endDate}
+                                    {formatYMD(config.startDate)} ～ {formatYMD(config.endDate)}
                                 </dd>
                             </div>
                             <div>
@@ -178,7 +174,7 @@ export function TripConfigCard({ config, updateConfig }: Props) {
                             <div>
                                 <dt>幣別</dt>
                                 <dd>
-                                    {config.tripCurrency} → {config.baseCurrency}
+                                    {currencyName(config.tripCurrency ?? 'JPY')} → {currencyName(config.baseCurrency ?? 'TWD')}
                                 </dd>
                             </div>
                         </dl>

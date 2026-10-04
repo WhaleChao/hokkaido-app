@@ -40,27 +40,27 @@ console.log('冒煙測試（手機 390px）');
 
 await t.step('首頁載入、沒有行程時顯示空狀態與範例入口', async () => {
     await page.goto(server.url);
-    await page.getByRole('heading', { name: '我的行程庫' }).waitFor();
-    await page.getByText('還沒有任何行程').waitFor();
+    await page.getByRole('heading', { name: '我的旅程庫' }).waitFor();
+    await page.getByText('還沒有任何旅程').waitFor();
     await shot(page, '01-dashboard-light-mobile');
 });
 
 await t.step('建立行程：日期顛倒會被擋下並說明', async () => {
-    await page.getByRole('button', { name: /建立新的行程/ }).click();
-    await page.getByLabel('旅程名稱').fill('冒煙測試之旅');
-    await page.getByLabel('出發日').fill('2026-02-12');
-    await page.getByLabel('結束日').fill('2026-02-10');
-    await page.getByRole('button', { name: '建立', exact: true }).click();
-    await page.getByText('結束日不能早於出發日').waitFor();
-    await page.getByLabel('出發日').fill('2026-02-10');
-    await page.getByLabel('結束日').fill('2026-02-12');
+    await page.getByRole('button', { name: /建立新旅程/ }).click();
+    await page.getByLabel('旅程名稱', { exact: true }).fill('冒煙測試之旅');
+    await page.getByLabel('出發日', { exact: true }).fill('2026-02-12');
+    await page.getByLabel('結束日', { exact: true }).fill('2026-02-10');
+    await page.keyboard.press('Tab');
+    await page.getByText(/日期不能早於/).first().waitFor();
+    await page.getByLabel('出發日', { exact: true }).fill('2026-02-10');
+    await page.getByLabel('結束日', { exact: true }).fill('2026-02-12');
     await page.getByRole('button', { name: '建立', exact: true }).click();
     await page.getByRole('heading', { name: '冒煙測試之旅' }).waitFor();
 });
 
 await t.step('行程頁：三天、Day 1 預設選取、空狀態提示', async () => {
-    await page.getByRole('button', { name: /Day 1/ }).waitFor();
-    await page.getByRole('button', { name: /Day 3/ }).waitFor();
+    await page.getByRole('button', { name: /第 1 天/ }).waitFor();
+    await page.getByRole('button', { name: /第 3 天/ }).waitFor();
     await page.getByText('這一天還沒有安排景點').waitFor();
 });
 
@@ -118,7 +118,7 @@ await t.step('景點詳情視窗：Esc 關閉、焦點回到卡片', async () =>
 
 await t.step('記帳：無效金額被擋、有效金額存入、總額與平分正確、刪除需確認', async () => {
     await page.getByRole('navigation', { name: '主選單' }).getByRole('button', { name: '記帳' }).click();
-    await page.getByRole('button', { name: /記一筆帳/ }).click();
+    await page.getByRole('button', { name: /記一筆花費/ }).click();
     await panel(page).getByLabel(/金額/).fill('abc');
     await panel(page).getByLabel('說明').fill('拉麵');
     await page.getByRole('button', { name: '儲存', exact: true }).click();
@@ -126,17 +126,17 @@ await t.step('記帳：無效金額被擋、有效金額存入、總額與平分
     await panel(page).getByLabel(/金額/).fill('1,500');
     await page.getByRole('button', { name: '儲存', exact: true }).click();
     await page.getByText('已記下這筆花費').waitFor();
-    await page.getByText('約 NT$300.00').waitFor();
+    await page.getByText('約 NT$300').waitFor();
     await page.getByText('¥750').waitFor();
     await shot(page, '04-expense-light-mobile');
 });
 
 await t.step('匯率：換算與對調方向', async () => {
     await page.getByRole('navigation', { name: '主選單' }).getByRole('button', { name: '匯率' }).click();
-    await panel(page).getByLabel(/金額（JPY）/).fill('3000');
-    await page.getByText('600.00').waitFor();
+    await panel(page).getByLabel(/金額（日圓）/).fill('3000');
+    await page.getByText('600', { exact: true }).waitFor();
     await page.getByRole('button', { name: /對調方向/ }).click();
-    await panel(page).getByLabel(/金額（TWD）/).waitFor();
+    await panel(page).getByLabel(/金額（新台幣）/).waitFor();
 });
 
 await t.step('行李清單：預設項目、勾選、進度、日本海關提醒', async () => {
@@ -263,10 +263,10 @@ await desk.page.route('**/open.er-api.com/**', (r) => r.fulfill({ json: { rates:
 await desk.page.route('**/*open-meteo.com/**', (r) => r.fulfill({ status: 503, body: '{}' }));
 await t.step('桌面版（1280px）：側邊導覽列與雙欄卡片', async () => {
     await desk.page.goto(server.url);
-    await desk.page.getByRole('button', { name: /建立新的行程/ }).click();
-    await desk.page.getByLabel('旅程名稱').fill('桌面測試');
-    await desk.page.getByLabel('出發日').fill('2026-02-10');
-    await desk.page.getByLabel('結束日').fill('2026-02-12');
+    await desk.page.getByRole('button', { name: /建立新旅程/ }).click();
+    await desk.page.getByLabel('旅程名稱', { exact: true }).fill('桌面測試');
+    await desk.page.getByLabel('出發日', { exact: true }).fill('2026-02-10');
+    await desk.page.getByLabel('結束日', { exact: true }).fill('2026-02-12');
     await desk.page.getByRole('button', { name: '建立', exact: true }).click();
     await desk.page.getByRole('heading', { name: '桌面測試' }).waitFor();
     await desk.page.getByRole('button', { name: '編輯行程' }).click();
@@ -286,7 +286,7 @@ await desk.ctx.close();
 const dark = await newPage({ colorScheme: 'dark' });
 await t.step('系統深色偏好：首頁自動套用深色', async () => {
     await dark.page.goto(server.url);
-    await dark.page.getByRole('heading', { name: '我的行程庫' }).waitFor();
+    await dark.page.getByRole('heading', { name: '我的旅程庫' }).waitFor();
     const bg = await dark.page.evaluate(() => getComputedStyle(document.body).backgroundColor);
     if (bg !== 'rgb(13, 23, 34)') throw new Error('深色背景不正確：' + bg);
     await shot(dark.page, '01-dashboard-dark-mobile');

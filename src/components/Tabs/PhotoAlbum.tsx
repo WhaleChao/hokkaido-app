@@ -60,7 +60,7 @@ export function PhotoAlbum({ tripId }: { tripId: string }) {
                     const url = getUrlForDay(day.id);
                     const editing = editingId === day.id;
                     const d = dayDisplay(day, index, config.startDate);
-                    const label = `Day ${index + 1}（${d.date}）`;
+                    const label = `第 ${index + 1} 天（${d.date}）`;
                     return (
                         <div key={day.id} className="card">
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -87,7 +87,7 @@ export function PhotoAlbum({ tripId }: { tripId: string }) {
                                 >
                                     <label className="field">
                                         <span className="label">相簿分享連結（留空儲存＝移除）</span>
-                                        <input className="input" type="text" inputMode="url" value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="https://photos.app.goo.gl/…" aria-invalid={!!urlError} data-autofocus />
+                                        <input className="input" type="text" inputMode="url" aria-label="相簿分享連結" value={temp} onChange={(e) => setTemp(e.target.value)} placeholder="https://photos.app.goo.gl/…" aria-invalid={!!urlError} data-autofocus />
                                         {urlError && (
                                             <p className="field-error" role="alert">
                                                 {urlError}

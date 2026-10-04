@@ -39,6 +39,7 @@ describe('金額工具', () => {
         expect(fractionDigits('JPY')).toBe(0);
         expect(fractionDigits('TWD')).toBe(2);
         expect(formatMoney(1234, 'JPY')).toBe('¥1,234');
-        expect(formatMoney(1234.5, 'TWD')).toBe('NT$1,234.50');
+        expect(formatMoney(1234.4, 'TWD')).toBe('NT$1,234'); // 新台幣顯示整數
+        expect(formatMoney(1234.5, 'USD')).toBe('US$1,234.50');
     });
 });

@@ -25,7 +25,7 @@ export function DaySelector({ days, selectedDayId, onSelectDay, startDate, today
                         onClick={() => onSelectDay(day.id)}
                     >
                         <span className="day-label">
-                            Day {i + 1}
+                            第 {i + 1} 天
                             {isToday && <span className="today-dot" role="img" aria-label="今天" />}
                         </span>
                         <span className="day-date">

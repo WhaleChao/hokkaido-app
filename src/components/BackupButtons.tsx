@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { DatabaseBackup, Upload } from 'lucide-react';
 import { createBackup, parseBackupText, restoreBackup, backupFileName, BackupError } from '../utils/backup';
+import { saveFile } from '../utils/download';
 import { useUi, describeError } from './ui/uiContext';
 
 /** 完整備份與還原（首頁與設定頁共用）。 */
@@ -13,26 +14,10 @@ export function BackupButtons() {
         setBusy(true);
         try {
             const file = await createBackup();
-            const blob = new Blob([JSON.stringify(file)], { type: 'application/json' });
-            const name = backupFileName();
-            const asFile = new File([blob], name, { type: 'application/json' });
-            if (navigator.canShare?.({ files: [asFile] })) {
-                try {
-                    await navigator.share({ files: [asFile], title: '旅遊備份' });
-                    return;
-                } catch (e) {
-                    if (e instanceof DOMException && e.name === 'AbortError') return;
-                }
-            }
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = name;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
-            ui.toast('備份檔已下載。裡面包含你的私密票券，請妥善保管', 'success');
+            const out = new File([new Blob([JSON.stringify(file)], { type: 'application/json' })], backupFileName(), { type: 'application/json' });
+            const how = await saveFile(out);
+            if (how === 'cancelled') return;
+            ui.toast(how === 'shared' ? '備份檔已交給系統分享。裡面包含你的私密票券，請妥善保管' : '備份檔已下載。裡面包含你的私密票券，請妥善保管', 'success');
         } catch (e) {
             ui.toast(`備份失敗：${describeError(e)}`, 'error');
         } finally {
@@ -70,7 +55,7 @@ export function BackupButtons() {
                 <Upload size={18} aria-hidden="true" /> 從備份檔還原
             </button>
             <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => void handleRestoreFile(e)} aria-label="選擇備份檔" />
-            <p className="small muted">備份檔包含所有行程、記帳、清單、相簿連結與私密票券圖片，只存在你選的位置，不會上傳到任何伺服器。</p>
+            <p className="small muted">備份檔包含所有旅程、記帳、清單、相簿連結與私密票券圖片，只存在你選的位置，不會上傳到任何伺服器。</p>
         </div>
     );
 }

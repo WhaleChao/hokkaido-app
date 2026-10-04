@@ -76,7 +76,7 @@ export function SpreadsheetImportModal({ onImport, onClose }: Props) {
 
                 <label className="field">
                     <span className="label">貼上表格內容</span>
-                    <textarea className="textarea code-box" style={{ minHeight: 160, whiteSpace: 'pre' }} value={text} onChange={(e) => setText(e.target.value)} placeholder={'1\t小樽運河\t景點\t傍晚點燈最美'} spellCheck={false} data-autofocus />
+                    <textarea className="textarea code-box" aria-label="貼上表格內容" style={{ minHeight: 160, whiteSpace: 'pre' }} value={text} onChange={(e) => setText(e.target.value)} placeholder={'1\t小樽運河\t景點\t傍晚點燈最美'} spellCheck={false} data-autofocus />
                 </label>
 
                 {error && (

@@ -1,22 +1,27 @@
 import { useState, useMemo } from 'react';
-import { Plus, Receipt, CalendarDays, Wallet, AlertTriangle } from 'lucide-react';
+import { Plus, Receipt, CalendarDays, Wallet, AlertTriangle, Download } from 'lucide-react';
 import { useExpenseStore, type ExpenseCategory, type ExpenseRecord } from '../../hooks/useExpenseStore';
 import { useConfigStore } from '../../hooks/useConfigStore';
 import { useExchangeRates } from '../../hooks/useExchangeRates';
 import { useUi } from '../ui/uiContext';
-import { todayISO, isValidISODate } from '../../utils/date';
-import { parseAmount, formatMoney, splitEvenly, fractionDigits, roundTo } from '../../utils/money';
+import { todayISO, isValidISODate, formatYMD } from '../../utils/date';
+import { parseAmount, formatMoney, splitEvenly, fractionDigits, roundTo, currencyName } from '../../utils/money';
+import { DateField } from '../ui/DateField';
+import { saveFile } from '../../utils/download';
+import { expensesToCsv } from '../../utils/csv';
 import { totalIn } from '../../utils/expenses';
 
 const CATEGORIES: ExpenseCategory[] = ['飲食', '交通', '住宿', '購物', '門票', '其他'];
 
 export function ExpenseTracker({ tripId }: { tripId: string }) {
-    const { expenses, loading, error, addExpense, removeExpense } = useExpenseStore(tripId);
+    const { expenses, loading, error, addExpense, updateExpense, removeExpense } = useExpenseStore(tripId);
     const { config } = useConfigStore(tripId);
     const { convert, status, fetchedAt, loading: ratesLoading } = useExchangeRates();
     const ui = useUi();
 
     const [showForm, setShowForm] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [formCurrency, setFormCurrency] = useState<string | null>(null);
     const [amount, setAmount] = useState('');
     const [desc, setDesc] = useState('');
     const [cat, setCat] = useState<ExpenseCategory>('飲食');
@@ -39,7 +44,7 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
         return { trip, base, byPayer };
     }, [expenses, tripCurr, baseCurr, convert]);
 
-    if (loading) return <div className="loading" role="status">讀取帳本中…</div>;
+    if (loading) return <div className="loading" role="status">讀取記帳資料中…</div>;
     if (error) return <div className="notice notice-error" role="alert">{error}</div>;
 
     const sameCurr = tripCurr === baseCurr;
@@ -56,25 +61,49 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
 
     const handleSave = async () => {
         const next: typeof errors = {};
-        const val = parseAmount(amount, tripCurr);
+        const cur = formCurrency ?? tripCurr;
+        const val = parseAmount(amount, cur);
         if (val === null) {
-            next.amount = fractionDigits(tripCurr) === 0 ? `請輸入大於 0 的整數金額（${tripCurr} 沒有小數）` : '請輸入大於 0 的金額，最多兩位小數';
+            next.amount = fractionDigits(cur) === 0 ? `請輸入大於 0 的整數金額（${currencyName(cur)}沒有小數）` : '請輸入大於 0 的金額，最多兩位小數';
         }
         if (!desc.trim()) next.desc = '請輸入這筆花費的說明';
         if (!isValidISODate(dateTxt)) next.date = '請選擇日期';
         setErrors(next);
         if (Object.keys(next).length > 0 || val === null) return;
 
-        const ok = await ui.run(
-            () => addExpense({ amountJPY: val, currency: tripCurr, description: desc.trim(), category: cat, dateISO: dateTxt, paidBy: payer.trim() || '自己' }),
-            '儲存失敗',
-            '已記下這筆花費',
-        );
-        if (ok) {
-            setAmount('');
-            setDesc('');
-            setShowForm(false);
-        }
+        const data = { amountJPY: val, currency: cur, description: desc.trim(), category: cat, dateISO: dateTxt, paidBy: payer.trim() || '自己' };
+        const ok = await ui.run(() => (editingId ? updateExpense(editingId, data) : addExpense(data)), '儲存失敗', editingId ? '已更新這筆花費' : '已記下這筆花費');
+        if (ok) closeForm();
+    };
+
+    const closeForm = () => {
+        setAmount('');
+        setDesc('');
+        setErrors({});
+        setEditingId(null);
+        setFormCurrency(null);
+        setShowForm(false);
+    };
+
+    const startEdit = (e: ExpenseRecord) => {
+        setEditingId(e.id);
+        setFormCurrency(e.currency || tripCurr);
+        setAmount(String(e.amountJPY));
+        setDesc(e.description);
+        setCat(e.category);
+        setDateTxt(e.dateISO);
+        setPayer(e.paidBy);
+        setErrors({});
+        setShowForm(true);
+    };
+
+    const handleExport = async () => {
+        const csv = expensesToCsv(expenses, tripCurr);
+        const name = `記帳_${config.tripName.replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40) || '旅程'}_${todayISO().replace(/-/g, '')}.csv`;
+        await ui.run(async () => {
+            const file = new File([new Blob([csv], { type: 'text/csv;charset=utf-8' })], name, { type: 'text/csv' });
+            await saveFile(file);
+        }, '匯出失敗', '已匯出記帳資料（CSV，可用 Excel 或試算表開啟）');
     };
 
     const handleDelete = async (e: ExpenseRecord) => {
@@ -86,7 +115,7 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
         <div className="tab-panel">
             <section className="summary-card" aria-label="花費總覽">
                 <p className="label-line">
-                    <Wallet size={16} aria-hidden="true" /> 本趟總花費（{tripCurr}）
+                    <Wallet size={16} aria-hidden="true" /> 本趟總花費（{currencyName(tripCurr)}）
                 </p>
                 <p className="big">{formatMoney(totals.trip.value, tripCurr)}</p>
                 {!sameCurr && expenses.length > 0 && (
@@ -95,7 +124,7 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
                             ? ratesLoading
                                 ? '換算中…'
                                 : totals.base.converted === 0
-                                  ? `暫時無法換算成 ${baseCurr}（沒有匯率）`
+                                  ? `暫時無法換算成${currencyName(baseCurr)}（沒有匯率）`
                                   : `約 ${formatMoney(totals.base.value, baseCurr)}（另有幾筆未能換算，實際會更多）`
                             : `約 ${formatMoney(totals.base.value, baseCurr)}`}
                     </p>
@@ -131,9 +160,11 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
             {!showForm ? (
                 <button type="button" className="btn btn-primary btn-block" style={{ minHeight: 52 }} onClick={() => {
                         setDateTxt(todayISO());
+                        setEditingId(null);
+                        setFormCurrency(null);
                         setShowForm(true);
                     }}>
-                    <Plus size={20} aria-hidden="true" /> 記一筆帳
+                    <Plus size={20} aria-hidden="true" /> 記一筆花費
                 </button>
             ) : (
                 <form
@@ -142,35 +173,27 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
                         e.preventDefault();
                         void handleSave();
                     }}
-                    aria-label="新增花費"
+                    aria-label={editingId ? '編輯花費' : '新增花費'}
                     noValidate
                 >
                     <h3 className="section-title" style={{ margin: '0 0 12px' }}>
-                        <Receipt size={20} aria-hidden="true" /> 新增花費
+                        <Receipt size={20} aria-hidden="true" /> {editingId ? '編輯花費' : '新增花費'}
                     </h3>
                     <div className="field-row">
                         <label className="field">
-                            <span className="label">金額（{tripCurr}）</span>
-                            <input className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" aria-invalid={!!errors.amount} data-autofocus />
+                            <span className="label">金額（{currencyName(formCurrency ?? tripCurr)}）</span>
+                            <input className="input" inputMode="decimal" aria-label={`金額（${currencyName(formCurrency ?? tripCurr)}）`} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" aria-invalid={!!errors.amount} data-autofocus />
                             {errors.amount && (
                                 <p className="field-error" role="alert">
                                     {errors.amount}
                                 </p>
                             )}
                         </label>
-                        <label className="field">
-                            <span className="label">日期</span>
-                            <input className="input" type="date" value={dateTxt} onChange={(e) => setDateTxt(e.target.value)} aria-invalid={!!errors.date} />
-                            {errors.date && (
-                                <p className="field-error" role="alert">
-                                    {errors.date}
-                                </p>
-                            )}
-                        </label>
+                        <DateField label="日期" value={dateTxt} onChange={setDateTxt} error={errors.date} />
                     </div>
                     <label className="field">
                         <span className="label">說明</span>
-                        <input className="input" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="例如：晚餐拉麵、藥妝店" aria-invalid={!!errors.desc} />
+                        <input className="input" aria-label="說明" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="例如：晚餐拉麵、藥妝店" aria-invalid={!!errors.desc} />
                         {errors.desc && (
                             <p className="field-error" role="alert">
                                 {errors.desc}
@@ -180,7 +203,7 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
                     <div className="field-row">
                         <label className="field">
                             <span className="label">分類</span>
-                            <select className="select" value={cat} onChange={(e) => setCat(e.target.value as ExpenseCategory)}>
+                            <select className="select" aria-label="分類" value={cat} onChange={(e) => setCat(e.target.value as ExpenseCategory)}>
                                 {CATEGORIES.map((c) => (
                                     <option key={c}>{c}</option>
                                 ))}
@@ -192,7 +215,7 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
                         </label>
                     </div>
                     <div className="form-actions">
-                        <button type="button" className="btn btn-secondary" onClick={() => setShowForm(false)}>
+                        <button type="button" className="btn btn-secondary" onClick={closeForm}>
                             取消
                         </button>
                         <button type="submit" className="btn btn-primary">
@@ -202,13 +225,19 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
                 </form>
             )}
 
-            <h3 className="section-title">支出明細</h3>
+            <h3 className="section-title">花費明細</h3>
             {expenses.length === 0 ? (
                 <div className="empty-state">
                     <Receipt size={36} aria-hidden="true" />
                     <p>還沒有任何花費紀錄</p>
                 </div>
             ) : (
+                <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+                    <button type="button" className="btn btn-ghost" onClick={() => void handleExport()}>
+                        <Download size={16} aria-hidden="true" /> 匯出 CSV
+                    </button>
+                </div>
                 <ul className="expense-grid">
                     {expenses.map((e) => (
                         <li key={e.id} className="expense-row">
@@ -216,7 +245,7 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
                                 <div className="chip-group" style={{ marginBottom: 4 }}>
                                     <span className="chip">{e.category}</span>
                                     <span className="small muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                        <CalendarDays size={13} aria-hidden="true" /> {e.dateISO}
+                                        <CalendarDays size={13} aria-hidden="true" /> {formatYMD(e.dateISO)}
                                     </span>
                                 </div>
                                 <p style={{ fontWeight: 700, overflowWrap: 'anywhere' }}>{e.description}</p>
@@ -224,13 +253,19 @@ export function ExpenseTracker({ tripId }: { tripId: string }) {
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <p className="expense-amount">{formatMoney(e.amountJPY, e.currency || tripCurr)}</p>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginRight: -12 }}>
+<button type="button" className="btn btn-ghost" onClick={() => startEdit(e)} aria-label={`編輯：${e.description}`}>
+                                    編輯
+                                </button>
                                 <button type="button" className="btn btn-ghost" style={{ color: 'var(--danger)', minHeight: 'var(--tap)' }} onClick={() => void handleDelete(e)} aria-label={`刪除：${e.description}`}>
                                     刪除
                                 </button>
+                                </div>
                             </div>
                         </li>
                     ))}
                 </ul>
+                </>
             )}
         </div>
     );

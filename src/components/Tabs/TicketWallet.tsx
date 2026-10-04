@@ -167,7 +167,7 @@ export function TicketWallet({ tripId }: { tripId: string }) {
                     </h3>
                     <label className="field">
                         <span className="label">類型</span>
-                        <select className="select" value={type} onChange={(e) => setType(e.target.value as TicketType)}>
+                        <select className="select" aria-label="類型" value={type} onChange={(e) => setType(e.target.value as TicketType)}>
                             <option value="transit">交通票券（JR Pass、周遊券）</option>
                             <option value="flight">航班資訊</option>
                             <option value="other">其他</option>
@@ -175,7 +175,7 @@ export function TicketWallet({ tripId }: { tripId: string }) {
                     </label>
                     <label className="field">
                         <span className="label">名稱</span>
-                        <input className="input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例如：星宇航空 JX800" aria-invalid={!!titleError} data-autofocus />
+                        <input className="input" aria-label="名稱" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="例如：星宇航空 JX800" aria-invalid={!!titleError} data-autofocus />
                         {titleError && (
                             <p className="field-error" role="alert">
                                 {titleError}

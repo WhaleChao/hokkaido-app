@@ -36,7 +36,7 @@ export function DataCard({ tripId }: { tripId: string }) {
             message: `會把行程還原成「${new Date(snap.at).toLocaleString('zh-TW')}」${snap.reason}保存的狀態。現在的行程會另存成新的還原點，之後可以再換回來。`,
             confirmText: '還原',
         });
-        if (ok) await ui.run(() => restoreSnapshot(tripId), '還原失敗', '已還原行程');
+        if (ok) await ui.run(() => restoreSnapshot(tripId), '還原失敗', '已還原旅程');
     };
 
     const handleUpdateCheck = async () => {
@@ -69,7 +69,7 @@ export function DataCard({ tripId }: { tripId: string }) {
                     <div className="notice" role="note">
                         <Undo2 size={18} aria-hidden="true" />
                         <div style={{ flex: 1 }}>
-                            <strong>有一份行程還原點</strong>
+                            <strong>有一份旅程還原點</strong>
                             <p>
                                 {new Date(snap.at).toLocaleString('zh-TW')}・{snap.reason}
                             </p>

@@ -50,3 +50,17 @@ describe('日期工具', () => {
         expect(legacyDayLabel('2026-02-10')).toBe('2月10日');
     });
 });
+
+describe('日期輸入（寬鬆解析與統一顯示）', () => {
+    it('多種常見寫法都能解析成同一天', async () => {
+        const { parseLooseDate, formatYMD } = await import('./date');
+        for (const t of ['2026/2/10', '2026-02-10', '2026.2.10', '2026年2月10日', '20260210', '２０２６／０２／１０', ' 2026 / 02 / 10 ']) {
+            expect(parseLooseDate(t), t).toBe('2026-02-10');
+        }
+        expect(formatYMD('2026-02-10')).toBe('2026/02/10');
+    });
+    it('不存在或亂打的日期回傳 null', async () => {
+        const { parseLooseDate } = await import('./date');
+        for (const t of ['2026/02/30', '2026/13/01', '2/10', 'abc', '', '2026', '2026/02', '99999999']) expect(parseLooseDate(t), t).toBeNull();
+    });
+});

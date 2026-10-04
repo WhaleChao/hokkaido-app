@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { useConfigStore } from '../../hooks/useConfigStore';
 import { useExchangeRates } from '../../hooks/useExchangeRates';
 import { Calculator, RefreshCw, ArrowDownUp, AlertTriangle } from 'lucide-react';
-import { fractionDigits } from '../../utils/money';
+import { fractionDigits, displayDigits, currencyName } from '../../utils/money';
 
 const QUICK_TRIP = [100, 500, 1000, 5000, 10000];
 const QUICK_BASE = [100, 500, 1000, 2000, 5000];
 
 function fmt(n: number, currency: string): string {
-    const d = fractionDigits(currency);
+    const d = displayDigits(currency);
     return n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
 }
 
@@ -65,7 +65,7 @@ export function ExchangeRate({ tripId }: { tripId: string }) {
             <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                     <div className="small muted">
-                        1 {tripCurr} ≈ {unit === null ? '—' : unit.toFixed(4)} {baseCurr}
+                        1 {currencyName(tripCurr)} ≈ {unit === null ? '—' : unit.toFixed(4)} {currencyName(baseCurr)}
                         <br />
                         {fetchedAt ? `匯率時間：${new Date(fetchedAt).toLocaleString('zh-TW')}` : '尚未取得匯率'}
                     </div>
@@ -75,7 +75,7 @@ export function ExchangeRate({ tripId }: { tripId: string }) {
                 </div>
 
                 <label className="exchange-box" style={{ display: 'block' }}>
-                    <span className="small muted">金額（{from}）</span>
+                    <span className="small muted">金額（{currencyName(from)}）</span>
                     <input type="text" inputMode="decimal" value={input} onChange={(e) => setInput(e.target.value)} aria-invalid={!valid} placeholder="0" />
                 </label>
                 {!valid && (
@@ -84,20 +84,20 @@ export function ExchangeRate({ tripId }: { tripId: string }) {
                     </p>
                 )}
                 <div className="swap-wrap">
-                    <button type="button" className="swap-btn" onClick={swap} aria-label={`對調方向，目前是 ${from} 換成 ${to}`}>
+                    <button type="button" className="swap-btn" onClick={swap} aria-label={`對調方向，目前是${currencyName(from)}換成${currencyName(to)}`}>
                         <ArrowDownUp size={18} aria-hidden="true" />
                     </button>
                 </div>
                 <div className="exchange-box out" aria-live="polite">
                     <span className="small" style={{ opacity: 0.8 }}>
-                        換算約為（{to}）
+                        換算約為（{currencyName(to)}）
                     </span>
                     <div className="big">{out === null ? '—' : fmt(out, to)}</div>
                 </div>
             </div>
 
             <h3 className="section-title">
-                常用金額（{tripCurr} → {baseCurr}）
+                常用金額（{currencyName(tripCurr)} → {currencyName(baseCurr)}）
             </h3>
             <div className="quick-grid">
                 {(tripCurr === 'JPY' || tripCurr === 'KRW' || tripCurr === 'VND' ? QUICK_TRIP : QUICK_BASE).map((amt) => {
@@ -105,10 +105,10 @@ export function ExchangeRate({ tripId }: { tripId: string }) {
                     return (
                         <div key={amt} className="quick-cell">
                             <div className="a">
-                                {amt.toLocaleString('en-US')} <span className="small muted">{tripCurr}</span>
+                                {amt.toLocaleString('en-US')} <span className="small muted">{currencyName(tripCurr)}</span>
                             </div>
                             <div className="b">
-                                {v === null ? '—' : fmt(v, baseCurr)} <span className="small muted">{baseCurr}</span>
+                                {v === null ? '—' : fmt(v, baseCurr)} <span className="small muted">{currencyName(baseCurr)}</span>
                             </div>
                         </div>
                     );

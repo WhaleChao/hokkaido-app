@@ -22,7 +22,7 @@ export function useTripManager() {
             setError('');
         } catch (e) {
             console.error('Failed to load trips', e);
-            setError('讀取行程庫失敗，請重新整理頁面。你的資料不會因此消失。');
+            setError('讀取旅程庫失敗，請重新整理頁面。你的資料不會因此消失。');
         } finally {
             setLoading(false);
         }

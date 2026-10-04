@@ -41,7 +41,7 @@ export function useExpenseStore(tripId: string) {
             setError('');
         } catch (e) {
             console.error('Failed to load expenses', e);
-            setError('讀取帳本失敗，請重新整理頁面');
+            setError('讀取記帳資料失敗，請重新整理頁面');
         } finally {
             setLoading(false);
         }
@@ -58,11 +58,20 @@ export function useExpenseStore(tripId: string) {
         await load();
     };
 
+    /** 修改既有花費：保留 id 與建立時間，其餘欄位以新的為準。 */
+    const updateExpense = async (id: string, data: Omit<ExpenseRecord, 'id' | 'createdAt'>) => {
+        if (!tripId) return;
+        const old = await expenseStore.getItem<ExpenseRecord>(`${tripId}_${id}`);
+        if (!old) throw new Error('找不到這筆花費，可能已被刪除');
+        await expenseStore.setItem(`${tripId}_${id}`, { ...old, ...data, id });
+        await load();
+    };
+
     const removeExpense = async (id: string) => {
         if (!tripId) return;
         await expenseStore.removeItem(`${tripId}_${id}`);
         await load();
     };
 
-    return { expenses, loading, error, addExpense, removeExpense };
+    return { expenses, loading, error, addExpense, updateExpense, removeExpense };
 }

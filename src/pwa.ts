@@ -34,7 +34,7 @@ export function initPwa(): void {
                 });
             }
         },
-        onRegisterError: (e) => console.error('Service Worker 註冊失敗', e),
+        onRegisterError: (e) => console.warn('Service Worker 註冊失敗（離線快取不可用）', e),
     });
 }
 

@@ -22,6 +22,12 @@ const SYMBOLS: Record<string, string> = {
     VND: '₫',
 };
 
+/** 顯示用小數位數：日圓、韓元、越南盾沒有小數；新台幣習慣顯示整數；其餘兩位。 */
+export function displayDigits(currency: string): number {
+    const c = currency.toUpperCase();
+    return ZERO_DECIMAL.has(c) || c === 'TWD' ? 0 : 2;
+}
+
 export function currencySymbol(currency: string): string {
     return SYMBOLS[currency.toUpperCase()] ?? `${currency} `;
 }
@@ -59,7 +65,7 @@ export function parseAmount(input: string, currency = 'JPY'): number | null {
 }
 
 export function formatMoney(amount: number, currency: string): string {
-    const d = fractionDigits(currency);
+    const d = displayDigits(currency);
     return `${currencySymbol(currency)}${amount.toLocaleString('en-US', {
         minimumFractionDigits: d,
         maximumFractionDigits: d,
@@ -77,6 +83,13 @@ export function sumAmounts(values: number[], currency: string): number {
 export function splitEvenly(total: number, people: number, currency: string): number {
     const n = Math.max(1, Math.floor(people));
     return ceilTo(total / n, fractionDigits(currency));
+}
+
+const NAMES: Record<string, string> = { TWD: '新台幣', JPY: '日圓', KRW: '韓元', USD: '美元', EUR: '歐元', THB: '泰銖', HKD: '港幣', SGD: '新加坡幣', MYR: '馬來西亞令吉', GBP: '英鎊', CNY: '人民幣', AUD: '澳幣', VND: '越南盾' };
+
+/** 白話幣別名稱：日圓；沒有收錄的幣別就顯示代碼。 */
+export function currencyName(code: string): string {
+    return NAMES[code.toUpperCase()] ?? code.toUpperCase();
 }
 
 export const CURRENCIES: { code: string; label: string }[] = [

@@ -15,7 +15,7 @@ export function Header({ tripId, onBack }: HeaderProps) {
 
     return (
         <header className="app-header">
-            <button type="button" className="btn-icon" onClick={onBack} aria-label="回到行程庫">
+            <button type="button" className="btn-icon" onClick={onBack} aria-label="回到旅程庫">
                 <ChevronLeft size={26} aria-hidden="true" />
             </button>
             <div className="header-text">

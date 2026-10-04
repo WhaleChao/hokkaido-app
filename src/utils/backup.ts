@@ -1,7 +1,7 @@
 import { allStores } from '../db';
 import { emitData } from './bus';
 
-// 完整備份：把這支手機上的所有行程、記帳、清單、相簿連結與票夾（含私密 QR）存成一個檔案。
+// 完整備份：把這支手機上的所有旅程、記帳、清單、相簿連結與票夾（含私密 QR）存成一個檔案。
 // 檔案只存在使用者自己選的位置，不會上傳到任何伺服器。
 
 export const BACKUP_APP = 'hokkaido-app';

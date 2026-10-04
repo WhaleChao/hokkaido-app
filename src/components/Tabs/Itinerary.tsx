@@ -110,7 +110,7 @@ export function Itinerary({ tripId }: { tripId: string }) {
 
     const handleDelete = async (id: string) => {
         const target = currentDay.attractions.find((a) => a.id === id);
-        const ok = await ui.confirm({ title: '刪除這個景點？', message: target ? `「${target.name}」會從 ${currentDay.dayLabel} 移除，無法復原。` : undefined, confirmText: '刪除', danger: true });
+        const ok = await ui.confirm({ title: '刪除這個景點？', message: target ? `「${target.name}」會從第 ${currentIndex + 1} 天移除，無法復原。` : undefined, confirmText: '刪除', danger: true });
         if (ok) await saveAttractions((l) => l.filter((a) => a.id !== id), '刪除景點失敗');
     };
 

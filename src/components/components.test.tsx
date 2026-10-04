@@ -11,7 +11,7 @@ import { Itinerary } from './Tabs/Itinerary';
 import { PhotoAlbum } from './Tabs/PhotoAlbum';
 import { createTripRecord, patchConfig, ensureDays, updateDay } from '../utils/tripData';
 import { resetRatesForTests } from '../hooks/useExchangeRates';
-import { todayISO } from '../utils/date';
+import { todayISO, formatYMD } from '../utils/date';
 import { expenseStore, albumStore } from '../db';
 import { RATES_CACHE_KEY } from '../utils/rates';
 import { type Attraction } from '../data/itinerary';
@@ -68,19 +68,19 @@ describe('記帳', () => {
         await patchConfig(id, { tripCurrency: 'JPY', baseCurrency: 'TWD', travelers: 2 });
         vi.stubGlobal('fetch', vi.fn(async () => (opts.fetchOk === false ? jsonResponse({}, { ok: false, status: 500 }) : jsonResponse(ratesBody))));
         renderWithUi(<ExpenseTracker tripId={id} />);
-        await screen.findByText('本趟總花費（JPY）');
+        await screen.findByText('本趟總花費（日圓）');
         return id;
     }
 
     it('預設日期是裝置當地的今天', async () => {
         await openExpense();
-        await userEvent.click(screen.getByRole('button', { name: /記一筆帳/ }));
-        expect((screen.getByLabelText('日期') as HTMLInputElement).value).toBe(todayISO());
+        await userEvent.click(screen.getByRole('button', { name: /記一筆花費/ }));
+        expect((screen.getByLabelText('日期') as HTMLInputElement).value).toBe(formatYMD(todayISO()));
     });
 
     it('無效金額（空白、文字、0、日圓帶小數）會顯示錯誤，不會存檔', async () => {
         const id = await openExpense();
-        await userEvent.click(screen.getByRole('button', { name: /記一筆帳/ }));
+        await userEvent.click(screen.getByRole('button', { name: /記一筆花費/ }));
         await userEvent.type(screen.getByLabelText('說明'), '午餐');
         for (const bad of ['', 'abc', '0', '100.5']) {
             const amt = screen.getByLabelText(/金額/);
@@ -94,12 +94,12 @@ describe('記帳', () => {
 
     it('新增一筆後：總額、結算幣別換算、兩人平分都正確', async () => {
         const id = await openExpense();
-        await userEvent.click(screen.getByRole('button', { name: /記一筆帳/ }));
+        await userEvent.click(screen.getByRole('button', { name: /記一筆花費/ }));
         await userEvent.type(screen.getByLabelText(/金額/), '1,500');
         await userEvent.type(screen.getByLabelText('說明'), '拉麵');
         await userEvent.click(screen.getByRole('button', { name: '儲存' }));
         await waitFor(() => expect(screen.getAllByText('¥1,500').length).toBeGreaterThan(0));
-        expect(screen.getByText('約 NT$300.00')).toBeInTheDocument(); // 1500 JPY * 30/150
+        expect(screen.getByText('約 NT$300')).toBeInTheDocument(); // 1500 JPY * 30/150
         expect(screen.getByText('¥750')).toBeInTheDocument(); // 兩人平分
         const keys = (await expenseStore.keys()).filter((k) => k.startsWith(id));
         const rec = await expenseStore.getItem<{ currency: string; amountJPY: number }>(keys[0]);
@@ -133,7 +133,7 @@ describe('匯率計算機', () => {
         vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline'); }));
         renderWithUi(<ExchangeRate tripId={id} />);
         expect(await screen.findByText('目前使用舊匯率')).toBeInTheDocument();
-        await waitFor(() => expect(document.querySelector('.exchange-box.out .big')?.textContent).toBe('200.00')); // 1000 JPY → TWD(30/150) = 200
+        await waitFor(() => expect(document.querySelector('.exchange-box.out .big')?.textContent).toBe('200')); // 1000 JPY → TWD(30/150) = 200
     });
 });
 

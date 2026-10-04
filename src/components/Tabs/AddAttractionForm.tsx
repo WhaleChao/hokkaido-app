@@ -80,7 +80,7 @@ export function AddAttractionForm({ onSave, onCancel, editAttraction }: Props) {
 
             <label className="field">
                 <span className="label">景點名稱</span>
-                <input className="input" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：小樽運河" aria-invalid={!!error} data-autofocus />
+                <input className="input" type="text" aria-label="景點名稱" value={name} onChange={(e) => setName(e.target.value)} placeholder="例如：小樽運河" aria-invalid={!!error} data-autofocus />
                 {error && (
                     <p className="field-error" role="alert">
                         {error}
@@ -91,7 +91,7 @@ export function AddAttractionForm({ onSave, onCancel, editAttraction }: Props) {
             <div className="field-row">
                 <label className="field">
                     <span className="label">分類</span>
-                    <select className="select" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
+                    <select className="select" aria-label="分類" value={category} onChange={(e) => setCategory(e.target.value as Category)}>
                         {CATEGORIES.map((c) => (
                             <option key={c}>{c}</option>
                         ))}
@@ -99,7 +99,7 @@ export function AddAttractionForm({ onSave, onCancel, editAttraction }: Props) {
                 </label>
                 <label className="field">
                     <span className="label">預計停留時間</span>
-                    <select className="select" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
+                    <select className="select" aria-label="預計停留時間" value={durationMinutes} onChange={(e) => setDurationMinutes(Number(e.target.value))}>
                         <option value={0}>不指定</option>
                         {durationOptions.map((o) => (
                             <option key={o.value} value={o.value}>
@@ -124,7 +124,7 @@ export function AddAttractionForm({ onSave, onCancel, editAttraction }: Props) {
             <div className="field-row">
                 <label className="field">
                     <span className="label">用餐時段（選填）</span>
-                    <select className="select" value={timeSlot} onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}>
+                    <select className="select" aria-label="用餐時段" value={timeSlot} onChange={(e) => setTimeSlot(e.target.value as TimeSlot)}>
                         {TIME_SLOTS.map((s) => (
                             <option key={s}>{s}</option>
                         ))}
@@ -164,7 +164,7 @@ export function AddAttractionForm({ onSave, onCancel, editAttraction }: Props) {
 
             <label className="field">
                 <span className="label">說明與筆記</span>
-                <textarea className="textarea" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="營業時間、要點的餐點、預約資訊…" />
+                <textarea className="textarea" aria-label="說明與筆記" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="營業時間、要點的餐點、預約資訊…" />
             </label>
 
             <label className="field">

@@ -29,8 +29,12 @@ export function UiProvider({ children }: { children: ReactNode }) {
         [],
     );
 
+    const inflight = useRef(new Set<string>());
     const run = useCallback(
         async (action: () => Promise<unknown> | unknown, failText: string, successText?: string) => {
+            // 同一個動作還在執行時，重複點擊直接忽略（避免連點造成重複新增）
+            if (inflight.current.has(failText)) return false;
+            inflight.current.add(failText);
             try {
                 await action();
                 if (successText) toast(successText, 'success');
@@ -39,6 +43,8 @@ export function UiProvider({ children }: { children: ReactNode }) {
                 console.error(failText, e);
                 toast(`${failText}：${describeError(e)}`, 'error');
                 return false;
+            } finally {
+                inflight.current.delete(failText);
             }
         },
         [toast],

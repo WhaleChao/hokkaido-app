@@ -89,3 +89,30 @@ export function validateTripDates(start: string, end: string, maxDays = MAX_TRIP
     if (n > maxDays) return `旅程最長 ${maxDays} 天，請縮短日期區間`;
     return null;
 }
+
+/** 完整日期的統一顯示格式：2026/02/10（全 App 一致）。 */
+export function formatYMD(iso: string): string {
+    const p = parseISODate(iso);
+    return p ? `${p.y}/${pad(p.m)}/${pad(p.d)}` : '';
+}
+
+/**
+ * 寬鬆解析使用者打的日期：2026/2/10、2026-02-10、2026.2.10、2026年2月10日、20260210，
+ * 全形數字也可。解析不出（含不存在的日期）回傳 null。
+ */
+export function parseLooseDate(input: string): string | null {
+    const s = input
+        .trim()
+        .replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0))
+        .replace(/[／－.。]/g, '/')
+        .replace(/[年月]/g, '/')
+        .replace(/日/g, '')
+        .replace(/-/g, '/')
+        .replace(/\s+/g, '');
+    const sep = /^(\d{4})\/(\d{1,2})\/(\d{1,2})\/?$/.exec(s);
+    const compact = /^(\d{4})(\d{2})(\d{2})$/.exec(s);
+    const hit = sep ?? compact;
+    if (!hit) return null;
+    const iso = toISO({ y: Number(hit[1]), m: Number(hit[2]), d: Number(hit[3]) });
+    return parseISODate(iso) ? iso : null;
+}
