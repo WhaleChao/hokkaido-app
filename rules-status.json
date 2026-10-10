@@ -1,20 +1,20 @@
 {
   "schema": 1,
-  "checked_at": "2026-10-09T10:32:44.890Z",
+  "checked_at": "2026-10-10T09:49:44.295Z",
   "sources": {
     "tw-customs-prohibited": {
       "status": "ok",
-      "checked_at": "2026-10-09T10:32:44.890Z",
+      "checked_at": "2026-10-10T09:49:44.295Z",
       "hash": "d767d85ccb250e8d0e69ce5ac5f87c5dc669780010bf29512267c959257113e2"
     },
     "tw-customs-medicine": {
       "status": "ok",
-      "checked_at": "2026-10-09T10:32:44.890Z",
+      "checked_at": "2026-10-10T09:49:44.295Z",
       "hash": "7e920dfa6e7f03ad98ec8cf685bd909b852210491bf7ce45edd12f586b5db8d3"
     },
     "tw-customs-food": {
       "status": "ok",
-      "checked_at": "2026-10-09T10:32:44.890Z",
+      "checked_at": "2026-10-10T09:49:44.295Z",
       "hash": "519a9fc530a3cb59086ccf4a9985dec1164c27f9fded47fcbe31a443f625a1c8"
     },
     "tw-aphia-traveler": {
@@ -25,17 +25,17 @@
     },
     "jp-customs-passenger": {
       "status": "ok",
-      "checked_at": "2026-10-09T10:32:44.890Z",
+      "checked_at": "2026-10-10T09:49:44.295Z",
       "hash": "683ca286aeca0d0a05c791c783f61d3a701587f8919531999ed3d68e7fe10708"
     },
     "jp-maff-animal": {
       "status": "ok",
-      "checked_at": "2026-10-09T10:32:44.890Z",
+      "checked_at": "2026-10-10T09:49:44.295Z",
       "hash": "460e2bde859d7103fe586b83f280ac476ce68cd1912b9af29d4980b758561957"
     },
     "sg-customs-chewing-gum": {
       "status": "ok",
-      "checked_at": "2026-10-09T10:32:44.890Z",
+      "checked_at": "2026-10-10T09:49:44.295Z",
       "hash": "964d233485e80e6db05612213e09d9354e025591bbfb7e51aedef610f0888b2e"
     }
   }
